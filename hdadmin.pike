@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.4 2002-02-03 20:58:15 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.5 2002-02-04 22:06:53 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -178,14 +178,19 @@ void openConnect()
   username->load_history();
   if(ROOTDN)
     username->gtk_entry()->set_text(ROOTDN);
+  else if(getenv("LOGNAME"))
+    username->gtk_entry()->set_text(getenv("LOGNAME"));
   host->set_usize(200,0);
   basedn->set_usize(200,0);
   username->set_usize(200,0);
   password->set_usize(200,0);
   connectWindow->editable_enters(password);  
   // load default server uri(s) into host box.
-
-  mapping conf=.readconf.readconf("/etc/ldap.conf");
+  mapping conf=([]);
+  if(file_stat( "/etc/ldap.conf" ))
+    conf=.readconf.readconf("/etc/ldap.conf");
+  if(file_stat( getenv("HOME")+"/.ldaprc" ))
+    conf+=.readconf.readconf( getenv("HOME")+"/.ldaprc" );
   if(conf) 
   {
     array serv=.readconf.get_conn_info(conf);
