@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.14 2003-06-16 15:15:00 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.15 2003-06-25 20:38:11 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -199,7 +199,7 @@ object addItemtoPage(object item, string desc, object page)
   label->set_justify(GTK.JUSTIFY_RIGHT);
   hbox->pack_start(label->show(), 0, 0 , 4);
   hbox->pack_end(item->show(), 0, 0, 4);
-  page->pack_start(hbox->show(), 0, 0, 0);
+  page->pack_start(hbox->show(), 0, 0, 1);
   return hbox;
 }
 

@@ -24,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.25 2003-06-20 20:54:07 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.26 2003-06-25 20:38:10 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.2.5"
 
@@ -317,52 +317,59 @@ void openConnect()
 
 void openSearch()
 {
-  object searchWindow;
+  object searchWindow, resultmsg;
 
-  searchWindow=Gnome.Dialog("Search the Directory",
-	Gnome.StockButtonOk ,
-	Gnome.StockButtonCancel);
-  searchWindow->set_usize(480,320);
-  object pane=searchWindow->vbox();
-  object vbox=GTK.Vbox(1,0)->show();
-  object hb=GTK.Hbox(1,0)->show(); 
+  searchWindow=GTK.Dialog();
+  searchWindow->set_title("Search the Directory");
+  searchWindow->set_usize(560,340);
+  resultmsg=GTK.Label("entries found.");
+  object pane=GTK.Vbox(0,0)->show();
+  object messagebox=searchWindow->get_action_area();
+  messagebox->add(resultmsg->show())->show();
+  searchWindow->add(pane);
+  object vpane=GTK.Vpaned()->show();
+
+  pane->pack_start(vpane, 1, 1, 5);
+
+  object vbox1=GTK.Vbox(1,0)->show();
+  object vbox2=GTK.Vbox(0,0)->show();
+
+  object hb=GTK.Hbox(0,0)->show(); 
   
   hb->pack_start(GTK.Pixmap(
      getPixmapfromFile("icons/directory_server.png"),
-     getBitmapfromFile("icons/directory_server_mask.png"))->show(),0,0,15);
+     getBitmapfromFile("icons/directory_server_mask.png"))->show(),0,0,10);
 
-  hb->pack_start(vbox, 0, 0, 5);
+  hb->pack_start(vbox1, 0, 0, 5);
 
-  pane->pack_start_defaults(hb);
+  vpane->pack1(hb, 0,0);
+  vpane->pack2(vbox2, 1,1);
 
   object line1=GTK.Hbox(0,0)->show();
-  object line2=GTK.Hbox(0,0)->show();
+//  object line2=GTK.Hbox(0,0)->show();
   object line3=GTK.Hbox(1,1)->show();
   object line4=GTK.Hbox(0,0)->show();
  
   object searchwords=GTK.Entry()->show();
-  object gobutton=GTK.Button("Search")->show();
+  object gobutton=GTK.Button(" Search ")->show();
  
   object type=GTK.Combo()->show();
   object directorypath=GTKSupport.pDirectoryTreePicker(ldap)->show();
   directorypath->set_path(ldap->BASEDN);
 
-  line1->pack_start(GTK.Label("Find ")->show(), 0, 0, 3);
-  line1->pack_start(type, 0, 0, 3);
-  line1->pack_start(GTK.Label(" named ")->show(), 0, 0, 3);
+  line1->pack_start(GTK.Label("Find ")->show(), 0, 0, 1);
+  line1->pack_start(type, 0, 0, 1);
+  line1->pack_start(GTK.Label(" named ")->show(), 0, 0, 1);
 
-  line2->pack_start(searchwords, 0,0,3);
-  line2->pack_start(gobutton, 0,0,3);
+  line1->pack_start(searchwords, 0,0,2);
+  line1->pack_start(gobutton, 0,0,2);
 
-  object scroller1=GTK.ScrolledWindow(0,0);
   object resultpane=.Objects.objectview(preferences->display->viewas);
   
-//  resultpane->box->set_usize(300,300);
+  line3->add(resultpane->box->show());
 
-  line3->pack_start(resultpane->box->show(), 1,1,1);
-
-  line4->pack_start(GTK.Label(" in ")->show(), 0, 0, 3);
-  line4->pack_start(directorypath, 0,0,3);
+  line4->pack_start(GTK.Label(" in ")->show(), 0, 0, 2);
+  line4->pack_start(directorypath, 0,0,2);
 
   array l=({});
 
@@ -374,11 +381,13 @@ void openSearch()
 
   type->entry()->set_editable(0);
 
-  vbox->pack_start(line1, 0, 0, 1);
-  vbox->pack_start(line2, 0, 0, 1);
-  vbox->pack_start(line3, 0, 0, 1);
-  vbox->pack_start(line4, 0, 0, 1);
-  vbox->show();
+  vbox1->pack_start(line1, 0, 0, 3);
+//  vbox1->pack_start(line2, 0, 0, 1);
+  vbox1->pack_start(line4, 0, 0, 3);
+
+  vbox2->pack_start(line3, 1, 1, 1);
+  vbox1->show();
+  vbox2->show();
   searchWindow->set_default(0);
   searchWindow->show();
   
