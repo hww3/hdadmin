@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<project name="hdadmin">
+<nocopy />
+<baselang>eng</baselang>
+<xmlpath>../translations/%L/hdadmin.xml</xmlpath>
+
+  <file>../util.pike</file>
+  <file>../hdadmin.pike</file>
+</project>
+

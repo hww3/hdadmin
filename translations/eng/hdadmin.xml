@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<locale version="1.0"/>
+<project>hdadmin</project>
+<language>eng</language>
+<file>../hdadmin.pike</file>
+<file>../util.pike</file>
+
+<str id="1">
+<o>Attempting connection to </o>
+<t></t>
+</str>
+
+<str id="2">
+<o>Connected.
+</o>
+<t></t>
+</str>
+
+<str id="3">
+<o>Starting HyperActive Directory Administrator </o>
+<t></t>
+</str>
+
+<str id="4">
+<o>HyperActive Directory</o>
+<t></t>
+</str>
+
+<str id="5">
+<o>You must select an object to save.</o>
+<t></t>
+</str>
+
+<str id="6">
+<o> objects</o>
+<t></t>
+</str>
+
+<str id="7">
+<o>Save </o>
+<t></t>
+</str>
+
+<str id="8">
+<o> as LDIF...</o>
+<t></t>
+</str>
+
+<str id="9">
+<o>You are already connected.</o>
+<t></t>
+</str>
+
+<str id="10">
+<o>Connect to LDAP Server</o>
+<t></t>
+</str>
+
+<str id="11">
+<o>Server</o>
+<t></t>
+</str>
+
+<str id="12">
+<o>Base DN</o>
+<t></t>
+</str>
+
+<str id="13">
+<o>Username</o>
+<t></t>
+</str>
+
+<str id="14">
+<o>Password</o>
+<t></t>
+</str>
+
+<str id="15">
+<o>Search the Directory</o>
+<t></t>
+</str>
+
+<str id="16">
+<o>No Entries Found.</o>
+<t></t>
+</str>
+
+<str id="17">
+<o> Search </o>
+<t></t>
+</str>
+
+<str id="18">
+<o>Find </o>
+<t></t>
+</str>
+
+<str id="19">
+<o> named </o>
+<t></t>
+</str>
+
+<str id="20">
+<o>in</o>
+<t></t>
+</str>
+
+<str id="21">
+<o> entries found.</o>
+<t></t>
+</str>
+
+<str id="22">
+<o>Login incorrect (check your userid).</o>
+<t></t>
+</str>
+
+<str id="23">
+<o>Manage your LDAP directory with style.</o>
+<t></t>
+</str>
+
+<str id="24">
+<o>Preferences</o>
+<t></t>
+</str>
+
+<str id="25">
+<o>List</o>
+<t></t>
+</str>
+
+<str id="26">
+<o>Icons</o>
+<t></t>
+</str>
+
+<str id="27">
+<o>First Name First</o>
+<t></t>
+</str>
+
+<str id="28">
+<o>Last Name First</o>
+<t></t>
+</str>
+
+<str id="29">
+<o>Default View</o>
+<t></t>
+</str>
+
+<str id="30">
+<o>Display Names as</o>
+<t></t>
+</str>
+
+<str id="31">
+<o>SSH/RSH Path</o>
+<t></t>
+</str>
+
+<str id="32">
+<o>Display</o>
+<t></t>
+</str>
+
+<str id="33">
+<o>User Objects</o>
+<t></t>
+</str>
+
+<str id="34">
+<o>New Organizational Unit...</o>
+<t></t>
+</str>
+
+<str id="35">
+<o>Delete Organizational Unit...</o>
+<t></t>
+</str>
+
+<str id="36">
+<o>New </o>
+<t></t>
+</str>
+
+<str id="37">
+<o>Disconnect</o>
+<t></t>
+</str>
+
+<str id="38">
+<o>Connect...</o>
+<t></t>
+</str>
+
+<str id="39">
+<o>Delete </o>
+<t></t>
+</str>
+
+<str id="40">
+<o>Create New Organizational Unit</o>
+<t></t>
+</str>
+
+<str id="41">
+<o>Create in</o>
+<t></t>
+</str>
+
+<str id="42">
+<o>Organizational Unit</o>
+<t></t>
+</str>
+
+<str id="43">
+<o>Description</o>
+<t></t>
+</str>
+
+<str id="44">
+<o>General</o>
+<t></t>
+</str>
+
+<str id="45">
+<o>An LDAP error occurred:</o>
+<t></t>
+</str>
+
+<str id="46">
+<o>You must provide a value for the Organizational Unit.</o>
+<t></t>
+</str>
+
+<str id="47">
+<o>You must provide a value for the Description.</o>
+<t></t>
+</str>
+
+<str id="48">
+<o>Connect to a directory server</o>
+<t></t>
+</str>
+
+<str id="49">
+<o>Actions</o>
+<t></t>
+</str>
+
+<str id="50">
+<o>Commonly used actions</o>
+<t></t>
+</str>
+
+<str id="51">
+<o>Search the directory tree</o>
+<t></t>
+</str>
+
+<str id="52">
+<o>File</o>
+<t></t>
+</str>

@@ -24,14 +24,19 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.27 2003-06-27 19:56:19 hww3 Exp $";
+// <locale-token project="hdadmin">LOCALE</locale-token>
+
+#define LOCALE(X,Y) Locale.translate("hdadmin", \
+    get_lang(), X, Y)
+
+string get_lang() { return random(2)?"eng"; }
+
+constant cvs_version="$Id: hdadmin.pike,v 1.28 2004-01-23 15:52:54 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.2.5"
 
 inherit "util.pike";
 import GTK.MenuFactory;
-
-#define SSL3_DEBUG 1
 
 object ldap;
 object win,status,leftpane,rightpane;
@@ -50,10 +55,12 @@ int isConnected=0;
 object treeselection;
 mapping treedata=([]);
 int main(int argc, array argv) {
+Locale.set_default_project_path("translations/%L/%P.xml");
 
  if(file_stat( getenv("HOME")+"/.pgtkrc" ))
     GTK.parse_rc( cpp(Stdio.read_bytes(getenv("HOME")+"/.pgtkrc")) );
-write("Starting HyperActive Directory Administrator " + HDADMIN_VERSION +  "...\n");
+write(LOCALE(3, "Starting HyperActive Directory Administrator ") + 
+     HDADMIN_VERSION +  "...\n");
 
 // let's load the preferences.
 
@@ -61,7 +68,7 @@ preferences=loadPreferences();
 // start up the ui...
 
 Gnome.init("HDAdmin", HDADMIN_VERSION , argv);
-win=Gnome.App("HDAdmin", "HyperActive Directory");
+win=Gnome.App("HDAdmin", LOCALE(4, "HyperActive Directory"));
 win->set_usize(600,400);
 setupMenus();
 setupToolbar();
@@ -140,11 +147,6 @@ void doLDIFSave(object what, object widget, mixed ... args)
     object c=Gnome.MessageBox("File exists...", 
       Gnome.MessageBoxError,
       Gnome.StockButtonOk, Gnome.StockButtonCancel);
-/*
-"The file you chose already
-exists.\n" +
-	"Overwrite " + outputfile + "?",
-*/
     
     c->set_usize(275, 150);
     c->show();
@@ -185,13 +187,14 @@ void openSaveWindow()
   array selected=rightpane->get_selected_objects();
   if(sizeof(selected)<1)
   {
-    openError("You must select an object to save.");
+    openError(LOCALE(5, "You must select an object to save."));
     return;
   }
   string txt;
   
-  string selection=sizeof(selected) + " objects";
-  object window=GTK.FileSelection("Save " + selection + " as LDIF...");
+  string selection=sizeof(selected) + LOCALE(6, " objects");
+  object window=GTK.FileSelection(LOCALE(7, "Save ") + selection + 
+    LOCALE(8," as LDIF..."));
 
   window->complete("*.ldif");
   window->show();
@@ -223,10 +226,10 @@ void openConnect()
   object connectWindow;
   if(isConnected==1) // we're already connected!
   {
-    openError("You are already connected.");
+    openError(LOCALE(9, "You are already connected."));
     return;
   }
-  connectWindow=Gnome.Dialog("Connect to LDAP Server",
+  connectWindow=Gnome.Dialog(LOCALE(10, "Connect to LDAP Server"),
 	Gnome.StockButtonOk ,
 	Gnome.StockButtonCancel);
   connectWindow->set_usize(350,0);
@@ -277,10 +280,10 @@ void openConnect()
         basedn->gtk_entry()->set_text(bdn);
   }
 
-  addItemtoPage(host, "Server", vbox);
-  addItemtoPage(basedn, "Base DN", vbox);
-  addItemtoPage(username, "Username", vbox);
-  addItemtoPage(password, "Password", vbox);
+  addItemtoPage(host, LOCALE(11, "Server"), vbox);
+  addItemtoPage(basedn, LOCALE(12, "Base DN"), vbox);
+  addItemtoPage(username, LOCALE(13, "Username"), vbox);
+  addItemtoPage(password, LOCALE(14, "Password"), vbox);
   
   vbox->show();
   connectWindow->set_default(0);
@@ -339,7 +342,7 @@ class Search
     preferences=t_o->preferences;
 
     searchWindow=GTK.Window(GTK.WINDOW_DIALOG);
-    searchWindow->set_title("Search the Directory");
+    searchWindow->set_title(LOCALE(15,"Search the Directory"));
     searchWindow->set_usize(560,340);
     pane=GTK.Vbox(0,0)->show();
     searchWindow->add(pane);
@@ -367,19 +370,19 @@ class Search
     object line4=GTK.Hbox(0,0)->show();
     object line5=GTK.Hbox(0,0)->show();
 
-    resultmsg=GTK.Label("No Entries Found.")
+    resultmsg=GTK.Label(LOCALE(16,"No Entries Found."))
       ->set_justify(GTK.JUSTIFY_RIGHT)->show(); 
 
     searchwords=GTK.Entry()->show();
-    gobutton=GTK.Button(" Search ")->show();
+    gobutton=GTK.Button(LOCALE(17," Search "))->show();
  
     type=GTK.Combo()->show();
     directorypath=GTKSupport.pDirectoryTreePicker(ldap)->show();
     directorypath->set_path(ldap->BASEDN);
 
-    line1->pack_start(GTK.Label("Find ")->show(), 0, 0, 1);
+    line1->pack_start(GTK.Label(LOCALE(18,"Find "))->show(), 0, 0, 1);
     line1->pack_start(type, 0, 0, 1);
-    line1->pack_start(GTK.Label(" named ")->show(), 0, 0, 1);
+    line1->pack_start(GTK.Label(LOCALE(19," named "))->show(), 0, 0, 1);
 
     line1->pack_start(searchwords, 0,0,2);
     line1->pack_start(gobutton, 0,0,2);
@@ -393,7 +396,7 @@ class Search
 
     line3->add(resultpane->box->show());
 
-    line4->pack_start(GTK.Label(" in ")->show(), 0, 0, 2);
+    line4->pack_start(GTK.Label(" " + LOCALE(20,"in")+" ")->show(), 0, 0, 2);
     line4->pack_start(directorypath, 0,0,2);
 
     line5->pack_end(resultmsg,0,0,2);
@@ -471,7 +474,7 @@ class Search
     clickevent=resultpane->signal_connect(GTK.button_press_event, 
         clickIconList, 0);
 
-    resultmsg->set_text(res->num_entries() + " entries found.");
+    resultmsg->set_text(res->num_entries() + LOCALE(21," entries found."));
   }
 
   GTK.Menu popupmenu;
@@ -560,7 +563,7 @@ int doConnect(string host, string username, string password, string basedn)
       object rslts=ldap->search(filter1);
       if(rslts->num_entries()!=1) // didn't find the person
       {
-        object c=Gnome.MessageBox("Login incorrect (check your userid).",
+        object c=Gnome.MessageBox(LOCALE(22,"Login incorrect (check your userid)."),
 	  Gnome.MessageBoxError, Gnome.StockButtonOk, 
 	  Gnome.StockButtonCancel);    
         c->set_usize(275, 150);
@@ -601,7 +604,7 @@ void openAbout()
   aboutWindow = Gnome.About("HyperActive Directory Administrator",
 				HDADMIN_VERSION, "(c) Bill Welliver 2002",
 				({"Bill Welliver", ""}),
-				"Manage your LDAP directory with style.",
+				LOCALE(23,"Manage your LDAP directory with style."),
 				"icons/spiral.png");
   aboutWindow->show();
   return;
@@ -622,7 +625,7 @@ void openPreferences()
 
   object propertiesWindow;
   propertiesWindow = Gnome.PropertyBox();
-  propertiesWindow->set_title("Preferences");
+  propertiesWindow->set_title(LOCALE(24,"Preferences"));
 
   object displaytab=GTK.Vbox(0, 0);
   object usertab=GTK.Vbox(0, 0);
@@ -630,23 +633,23 @@ void openPreferences()
   object dvo=GTK.OptionMenu();
   object dcn=GTK.OptionMenu();
 
-  dvo->set_menu(GTK.Menu()->append(GTK.MenuItem("List")->show())
-	->append(GTK.MenuItem("Icons")->show())->show());
+  dvo->set_menu(GTK.Menu()->append(GTK.MenuItem(LOCALE(25,"List"))->show())
+	->append(GTK.MenuItem(LOCALE(26,"Icons"))->show())->show());
 
-  dcn->set_menu(GTK.Menu()->append(GTK.MenuItem("First Name First")->show())
-	->append(GTK.MenuItem("Last Name First")->show())->show());
+  dcn->set_menu(GTK.Menu()->append(GTK.MenuItem(LOCALE(27,"First Name First"))->show())
+	->append(GTK.MenuItem(LOCALE(28,"Last Name First"))->show())->show());
 
   object defaultview=addProperty("defaultview", "", dvo);
-  addItemtoPage(defaultview, "Default View", displaytab);
+  addItemtoPage(defaultview, LOCALE(29,"Default View"), displaytab);
 
   object displaycn=addProperty("displaycn", "", dcn);
-  addItemtoPage(displaycn, "Display Names as", displaytab);
+  addItemtoPage(displaycn, LOCALE(30,"Display Names as"), displaytab);
 
   object sshpath=addProperty("sshpath", "/usr/bin/ssh", GTK.Entry());
-  addItemtoPage(sshpath, "SSH/RSH Path", usertab);
+  addItemtoPage(sshpath, LOCALE(31,"SSH/RSH Path"), usertab);
 
-  addPagetoProperties(displaytab, "Display", propertiesWindow);
-  addPagetoProperties(usertab, "User Objects", propertiesWindow);
+  addPagetoProperties(displaytab, LOCALE(32,"Display"), propertiesWindow);
+  addPagetoProperties(usertab, LOCALE(33,"User Objects"), propertiesWindow);
 
   propertiesWindow->show();
 }
@@ -666,8 +669,8 @@ array createPopupMenu(string type)
 
   if(type=="tree")
   {
-    defs+=({MenuDef( "New Organizational Unit...", openNewOU, 0 )});
-    defs+=({MenuDef( "Delete Organizational Unit...", openDeleteOU, 0 )});
+    defs+=({MenuDef( LOCALE(34,"New Organizational Unit..."), openNewOU, 0 )});
+    defs+=({MenuDef( LOCALE(35,"Delete Organizational Unit..."), openDeleteOU, 0 )});
    
   }
 
@@ -683,17 +686,17 @@ mixed newActionsPopup()
     foreach(
       indices(Objects), string n)
         if(Objects[n]()->writeable)
-        defs+=({MenuDef("New " + upper_case(n[0..0]) + n[1..] + "...", openNew, n)});
+        defs+=({MenuDef(LOCALE(36,"New ") + upper_case(n[0..0]) + n[1..] + "...", openNew, n)});
 
    defs+=
   ({    MenuDef( "<separator>", openDisconnect, 0 ) });
   }
   if(isConnected) defs+=
   ({
-    MenuDef( "Disconnect", openDisconnect, 0 )
+    MenuDef( LOCALE(37,"Disconnect"), openDisconnect, 0 )
   });
   else defs+=({
-    MenuDef( "Connect...", openConnect, 0)
+    MenuDef( LOCALE(38,"Connect..."), openConnect, 0)
     });
 
  [object menu, object map]=PopupMenuFactory( @defs);
@@ -726,7 +729,7 @@ void openDeleteOU()
     comp1+=({String.trim_whites((c/"=")[1])});
   loc=replace(comp1*"/", ({"``"}), ({"\\,"}));
 
-    object c=Gnome.MessageBox("Delete " + loc + "?", 
+    object c=Gnome.MessageBox(LOCALE(39,"Delete ") + loc + "?", 
       Gnome.MessageBoxError,
       Gnome.StockButtonOk, Gnome.StockButtonCancel);
     
@@ -747,7 +750,7 @@ void openNewOU()
 
   object propertiesWindow;
   propertiesWindow = Gnome.PropertyBox();
-  propertiesWindow->set_title("Create New Organizational Unit");
+  propertiesWindow->set_title(LOCALE(40,"Create New Organizational Unit"));
   whatchanged->propertiesWindow=propertiesWindow;
   object generaltab=GTK.Vbox(0, 0);
 
@@ -770,10 +773,10 @@ void openNewOU()
   ou->signal_connect("changed", propertiesChanged, whatchanged);
   description->signal_connect("changed", propertiesChanged, whatchanged);
 
-  addItemtoPage(par, "Create in", generaltab);
-  addItemtoPage(ou, "Organizational Unit", generaltab);
-  addItemtoPage(description, "Description", generaltab);
-  addPagetoProperties(generaltab, "General", propertiesWindow);
+  addItemtoPage(par, LOCALE(41,"Create in"), generaltab);
+  addItemtoPage(ou, LOCALE(42,"Organizational Unit"), generaltab);
+  addItemtoPage(description, LOCALE(43,"Description"), generaltab);
+  addPagetoProperties(generaltab, LOCALE(44,"General"), propertiesWindow);
   propertiesWindow->signal_connect("apply", addNewOU, (["ou": ou, 
     "description": description]));
   propertiesWindow->show();
@@ -789,7 +792,8 @@ void doDeleteOU(string oudn)
     res=ldap->delete(oudn);
     if(!res)
     {
-       openError("An LDAP error occurred:\n" + ldap->error_string());
+       openError(LOCALE(45,"An LDAP error occurred:") + "\n" + 
+         ldap->error_string());
        return;
     }
     else
@@ -812,12 +816,12 @@ void addNewOU(mixed whatchanged, object widget, mixed args)
 #endif
     if(whatchanged->ou->get_text()=="")
     {
-      openError("You must provide a value for the Organizational Unit.");
+      openError(LOCALE(46,"You must provide a value for the Organizational Unit."));
       return;
     }
     if(whatchanged->description->get_text()=="")
     {
-      openError("You must provide a value for the Description.");
+      openError(LOCALE(47,"You must provide a value for the Description."));
       return;
     }
     // we're at the end and the input is valid.
@@ -834,7 +838,7 @@ void addNewOU(mixed whatchanged, object widget, mixed args)
 "description": ({whatchanged->description->get_text()})]));
     if(!res)
     {
-       openError("An LDAP error occurred:\n" + ldap->error_string());
+       openError(LOCALE(45,"An LDAP error occurred:") + "\n" + ldap->error_string());
        return;
     }
     else
@@ -892,12 +896,12 @@ getBitmapfromFile("icons/actions_mask.png"))->show();
   searchButton->set_sensitive(0);
 
   object toolbar=GTK.Toolbar(GTK.ORIENTATION_HORIZONTAL, GTK.TOOLBAR_ICONS);
-  toolbar->append_widget(connectButton, "Connect to a directory server", 
+  toolbar->append_widget(connectButton, LOCALE(48,"Connect to a directory server"), 
      "Private");
   toolbar->append_space();
-  toolbar->append_item("Actions", "Commonly used actions", "", actionicon,
+  toolbar->append_item(LOCALE(49,"Actions"), LOCALE(50,"Commonly used actions"), "", actionicon,
     openActions, 0);
-  toolbar->append_widget(searchButton, "Search the directory tree", 
+  toolbar->append_widget(searchButton, LOCALE(51, "Search the directory tree"), 
      "Private");
 
 //  toolbar->set_style(GTK.TOOLBAR_BOTH);
@@ -915,7 +919,7 @@ void setupMenus()
   mapping sc = GTK.Util.parse_shortcut_file( "simple_menu_shortcuts" );
 
   array defs = ({
-    GTK.MenuFactory.MenuDef( "File/Connect...", openConnect, 0 ),
+    GTK.MenuFactory.MenuDef( LOCALE(52,"File") + "/" + LOCALE(38,"Connect..."), openConnect, 0 ),
     GTK.MenuFactory.MenuDef( "File/Disconnect...", openDisconnect, 0 ),
     GTK.MenuFactory.MenuDef( "File/Save as LDIF...", openSaveWindow, 0 ),
     GTK.MenuFactory.MenuDef( "File/<separator>", 0, 0 ),

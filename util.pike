@@ -22,9 +22,16 @@
 //
 //
 
+// <locale-token project="hdadmin">LOCALE</locale-token>
+
+#define LOCALE(X,Y) Locale.translate("hdadmin", \
+    get_lang(), X, Y)
+
+string get_lang() { return random(2)?"eng":"swe"; }
+
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.17 2003-11-10 16:41:20 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.18 2004-01-23 15:52:54 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -45,12 +52,12 @@ class LDAPConn
     {
       foreach(r, string ref)
       {
-         werror("Attempting connection to " + ref + "...\n");
+         werror(LOCALE(1, "Attempting connection to ") + ref + "...\n");
          object context=SSL.context();
          object lref;
          catch(lref=Protocols.LDAP.client(ref, context));
          if(!lref) continue;
-         werror("Connected.\n");
+         werror(LOCALE(2, "Connected.\n"));
          res=lref->bind(USER, USERPASS);
          if(!res) continue;
          werror("Bound.\n");
