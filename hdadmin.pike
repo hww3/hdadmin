@@ -24,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.18 2002-10-31 18:13:07 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.19 2002-11-18 19:12:13 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.2.5"
 
@@ -361,8 +361,32 @@ void openPreferences()
   object propertiesWindow;
   propertiesWindow = Gnome.PropertyBox();
   propertiesWindow->set_title("Preferences");
-  propertiesWindow->show();
 
+  object displaytab=GTK.Vbox(0, 0);
+  object usertab=GTK.Vbox(0, 0);
+
+  object dvo=GTK.OptionMenu();
+  object dcn=GTK.OptionMenu();
+
+  dvo->set_menu(GTK.Menu()->append(GTK.MenuItem("List")->show())
+	->append(GTK.MenuItem("Icons")->show())->show());
+
+  dcn->set_menu(GTK.Menu()->append(GTK.MenuItem("First Name First")->show())
+	->append(GTK.MenuItem("Last Name First")->show())->show());
+
+  object defaultview=addProperty("defaultview", "", dvo);
+  addItemtoPage(defaultview, "Default View", displaytab);
+
+  object displaycn=addProperty("displaycn", "", dcn);
+  addItemtoPage(displaycn, "Display Names as", displaytab);
+
+  object sshpath=addProperty("sshpath", "/usr/bin/ssh", GTK.Entry());
+  addItemtoPage(sshpath, "SSH/RSH Path", usertab);
+
+  addPagetoProperties(displaytab, "Display", propertiesWindow);
+  addPagetoProperties(usertab, "User Objects", propertiesWindow);
+
+  propertiesWindow->show();
 }
 
 object generatePopupMenu(array defs)
