@@ -1,0 +1,20 @@
+([ /* 4 elements */
+  "loginshell":({ /* 1 element */
+        "/bin/csh"
+    }),
+  "objectclass":({ /* 7 elements */
+        "account",
+        "inetorgperson",
+        "organizationalperson",
+        "person",
+        "posixaccount",
+        "shadowaccount",
+        "top"
+    }),
+  "shadowmax":({ /* 1 element */
+        "90"
+    }),
+  "shadowwarning":({ /* 1 element */
+        "7"
+    })
+])
