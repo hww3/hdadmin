@@ -1,0 +1,14 @@
+Changes since version 0.1.0:
+
+Users may log in using either DNs or a user id located beneath the base DN
+specified in the connect dialog. An error will be displayed if the user's
+DN cannot be discovered.
+
+Locked users may be deleted.
+
+Object definitions are displayed using LDIF.
+
+Objects may be saved as an LDIF file.
+
+A missing patch file was added to the patches directory.
+

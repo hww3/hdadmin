@@ -1,0 +1,20 @@
+Requirements:
+
+GTK+
+Gnome
+Pike 7.3.13+ compiled with Gnome/GTK patches from patches directory
+
+Usage:
+
+pike hdadmin.pike
+
+Because HyperActive Directory Administrator is a graphically oriented
+program, you should get a feel for its use without too much difficulty. As
+a general rule, right clicking on an object will show you the options
+available for that object.
+
+Website:
+
+http://hww3.riverweb.com/hdadmin
+
+Copyright (c) 2001,2002 Bill Welliver <hww3@riverweb.com>
