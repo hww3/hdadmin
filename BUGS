@@ -4,9 +4,10 @@ Current list of known issues:
 
 - list/icon view selector isn't set properly on startup.
 
-- can't add hosts.
 
 Bugs/issues fixed:
+
+- can't add hosts. Fixed 20021105
 
 - can't modify hosts. Fixed 20021020
 
