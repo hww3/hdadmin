@@ -1,9 +1,15 @@
 Changes since version 0.2.0
 
-Added #! line to top of hdadmin script.
+Added support for referrals. This requires new pike 7.3.49+.
+
+Updated to support new LDAP API. This requires new pike 7.3.49+.
+
+Added #! line to top of hdadmin script (probably not that useful bc of -M 
+  option requirement).
 
 Fixed the following bugs:
 
+- error dialogs are more standard.
 - autohome directory not saved when creating new user account.
 - shadowinactive not being saved.
 - cursor not automatically present in first password box when resetting password.

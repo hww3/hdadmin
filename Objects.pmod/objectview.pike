@@ -192,8 +192,14 @@ mixed signal_disconnect(int arg)
 
 // utility functions that should probably be moved out to their own mod
 
+mapping image_cache=([]);
+
 object getPixmapfromFile(string filename)
-{
+{ 
+  if(image_cache[filename]) return image_cache[filename];
+
   object p=Image.PNG.decode(Stdio.read_file(filename));
-  return GDK.Pixmap(p); 
+  image_cache[filename]=GDK.Pixmap(p); 
+  
+  return image_cache[filename];
 }
