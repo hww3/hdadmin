@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.3 2002-01-14 00:48:24 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.4 2002-02-03 20:58:15 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -82,6 +82,78 @@ void toggleConnect()
 {
   if(isConnected==1) openDisconnect();
   else openConnect();
+}
+
+void doLDIFSave(object what, object widget, mixed ... args)
+{ 
+  string outputfile=what->get_filename();
+  if(file_stat(outputfile))
+//    write("file " + outputfile + " exists...\n");
+  {
+    object c=Gnome.MessageBox("File exists...", 
+      GTK.GNOME_STOCK_BUTTON_CANCEL, GTK.GNOME_STOCK_BUTTON_OK);    
+/*
+"The file you chose already
+exists.\n" +
+	"Overwrite " + outputfile + "?",
+*/
+    
+    c->set_usize(275, 150);
+    c->show();
+    int returnvalue=c->run_and_close();
+    if(returnvalue==1)
+      return;
+  }
+
+//  write("writing objects to " + outputfile + "\n");
+  string output="";
+
+  array selected=rightpane->get_selected_icons();
+
+  foreach(selected, int sel) 
+  {
+    object data=rightpane->get_icon_data(sel);
+    ldap->set_scope(2);
+    ldap->set_basedn(data->dn);
+    string filter="objectclass=*";
+    object res=ldap->search(filter);
+    mapping info=res->fetch();
+    output+=generateLDIF(info);
+    output+="\n";
+  }
+//  write("output: \n\n" + output + "\n"); 
+    Stdio.write_file(outputfile, output);
+  closeSaveWindow(what, widget, args);
+}
+
+void closeSaveWindow(object what, object widget, mixed ... args)
+{
+  what->hide();
+  what->destroy();
+}
+
+void openSaveWindow()
+{
+  array selected=rightpane->get_selected_icons();
+  if(sizeof(selected)<1)
+  {
+    openError("You must select an object to save.");
+    return;
+  }
+  string txt;
+  
+  string selection=sizeof(selected) + " objects";
+  object window=GTK.FileSelection("Save " + selection + " as LDIF...");
+
+  window->complete("*.ldif");
+  window->show();
+  object ok=window->ok_button();
+  object cancel=window->cancel_button();
+//write(sprintf("%O", indices(cancel)));
+
+  cancel->signal_connect("clicked", closeSaveWindow, window);
+  ok->signal_connect("clicked", doLDIFSave, window);
+
 }
 
 void openConnect()
@@ -179,6 +251,25 @@ int doConnect(string host, string username, string password)
   {
     object context=SSL.context();
     ldap=Protocols.LDAP.client(host, context);
+    if(sizeof(username/"=")==1)  // we need to find the dn for uid
+    {
+      string filter1="(&(objectclass=account)(uid=" +
+       username + "))";
+      ldap->set_scope(2);
+      ldap->set_basedn(BASEDN);
+      object rslts=ldap->search(filter1);
+      if(rslts->num_entries()!=1) // didn't find the person
+      {
+        object c=Gnome.MessageBox("Login incorrect (check your userid).",
+        GTK.GNOME_MESSAGE_BOX_ERROR, GTK.GNOME_STOCK_BUTTON_OK);    
+        c->set_usize(275, 150);
+        c->show();
+        c->run_and_close();
+        return 1;
+      }
+      username=rslts->get_dn();
+      werror("connecting as " + username + "\n");
+    }
     int r=ldap->bind(username, password, 3);
     if(r!=0) {
       object c=Gnome.MessageBox("Login incorrect.",
@@ -212,7 +303,7 @@ void openProperties()
   array dns=getDNfromSelection();
   foreach(dns, object dn)
   {
-    if(dn->type=="user")
+    if(dn->type[0..3]=="user")
       openUserProperties(dn);
     else if(dn->type=="host")
       openHostProperties(dn);
@@ -1187,7 +1278,7 @@ void openDisable(object o)
   {
     object data=rightpane->get_icon_data(sel);
     txt=data->cn;
-    if(data->type!="user")
+    if(data->type[0..3]!="user")
     {
       openError("You may only disable users.");
       return;
@@ -1217,9 +1308,9 @@ void openDelete(object o)
   {
     object data=rightpane->get_icon_data(sel);
     txt=data->cn;
-    if(data->type!="user")
+    if(data->type[0..3]!="user")
     {
-      openError("You may only disable users.");
+      openError("You may only delete users.");
       return;
     }
   }
@@ -1507,7 +1598,7 @@ else if(type=="group")
 else if(type=="user-locked")
   defs = ({
     MenuDef( "Properties...", openProperties, 0 ),
-    MenuDef( "Delete...", openAbout, 0 ),
+    MenuDef( "Delete...", openDelete, 0 ),
     MenuDef( "Move...", openMove, 0 ),
     MenuDef( "Enable Account...", openEnable, 0 ),
     MenuDef( "Rename", openRename, 0 ),
@@ -1618,7 +1709,7 @@ void setupMenus()
   array defs = ({
     GTK.MenuFactory.MenuDef( "File/Connect...", openConnect, 0 ),
     GTK.MenuFactory.MenuDef( "File/Disconnect...", openDisconnect, 0 ),
-    GTK.MenuFactory.MenuDef( "File/Save...", 0, 0 ),
+    GTK.MenuFactory.MenuDef( "File/Save as LDIF...", openSaveWindow, 0 ),
     GTK.MenuFactory.MenuDef( "File/<separator>", 0, 0 ),
     GTK.MenuFactory.MenuDef( "File/Quit...", appQuit, 0 ),
     GTK.MenuFactory.MenuDef( "Edit/Copy DN", openAbout, 0 ),
