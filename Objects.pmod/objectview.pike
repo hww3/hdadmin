@@ -2,13 +2,27 @@
 //  objectview: the view of objects in the hdadmin window
 //
 
+inherit "../util.pike";
+
 string view_type;
 object view, box;
 object vbox;
+mapping objectclass_map=([]);
 
 void create(string viewas)
 {
   change_view(viewas);
+  foreach(indices(Objects), string o)
+  {
+    if(o=="objectview") continue; // we don't want to checkourselves and get into a loop!
+//    werror("checking in " + o + "\n");
+    multiset ocs=(<>);
+    if(Objects[o] && Objects[o]()->supported_objectclasses)
+      ocs=Objects[o]()->supported_objectclasses();
+    foreach(indices(ocs), string oc)
+      objectclass_map[oc]=o;
+  }
+//  werror("objectclass_map: " + sprintf("%O", objectclass_map) + "\n");
 }
 
 
@@ -24,6 +38,7 @@ void freeze()
 
 void thaw()
 {
+  view->sort();
   view->thaw();
 }
 
@@ -106,50 +121,22 @@ void change_view(string viewas)
 
 }
 
-void add_object(mapping item, object ldap, object this)
+void add_object(object ldap, object this, mapping entry)
 {
-#ifdef DEBUG
-werror("add_object: " + item->title + "\n");
-#endif
   int addedrow;
-  if(item->state=="locked")
-  {
-    if(view_type=="list")
-    {
-      addedrow=view->insert(0, ({item->title, (item->subtitle||"") }) );
-      object px=getPixmapfromFile("icons/" + item->type + "-locked-vsm.png");
-      view->set_pixtext(0, addedrow, item->title, 5, px);
-    }
-    else if(view_type=="icons")
-      addedrow=view->insert(0, "icons/" + item->type + "-locked-sm.png", item->title);
-  }
-  else
-  {
-    if(view_type=="list")
-    {
-      addedrow=view->insert(0, ({item->title, (item->subtitle||"") }) );
-      object px=getPixmapfromFile("icons/" + item->type + "-vsm.png");
-      view->set_pixtext(addedrow, 0, item->title, 5, px);
-    }
-    else if(view_type=="icons")
-    {
-#ifdef DEBUG
-werror("add_object: " + item->name + " inserting icon...");
-#endif
-      addedrow=view->insert(0, "icons/" + item->type + "-sm.png", item->title);
-#ifdef DEBUG
-werror("done.\n");
-#endif
-    }
-  }
   object d;
-#ifdef DEBUG
-werror("add_object: " + item->name + " making data\n");
-#endif
-  d=make_object(item, ldap, this);
-#ifdef DEBUG
-werror("add_object: " + item->name + " setting data\n");
-#endif
+  object px;
+  d=make_object(entry, ldap, this);
+  if(view_type=="list")
+  {
+      addedrow=view->insert(0, ({"", d->description }) );
+      px=d->get_icon("verysmall");
+      view->set_pixtext(0, addedrow, d->name, 5, px);
+  }
+  else if(view_type=="icons")
+  {
+     addedrow=view->insert(0, "icons/" + d->type + "-sm.png", d->name);
+  }
 
   if(view_type=="list")
     view->set_row_data(addedrow, d);
@@ -157,16 +144,27 @@ werror("add_object: " + item->name + " setting data\n");
     view->set_icon_data(addedrow, d);
 }
 
-object make_object(mapping item, object ldap, object this)
+object make_object(mapping|string entry, object ldap, object this)
 {
-  object d;
-  if(Objects[item->type])
-    d=Objects[item->type](ldap, this, item->dn, item->name, 
-	item->state, (item->uid||item->cn||""));
-  else
-    d=Objects.generic(ldap, this, item->dn, item->name, 
-	item->state, (item->uid||item->cn||""));
-  return d;
+  if(stringp(entry))
+  {
+    object d;
+    if(Objects[entry])
+      d=Objects[entry](ldap, "", ([]), this);
+    return d;
+  }
+  else 
+  {
+    entry=fix_entry(entry);
+
+    string type=getTypeofObject(entry->objectclass);
+    object d;
+    if(Objects[type])
+      d=Objects[type](ldap, entry->dn[0], entry, this);
+    else
+      d=Objects.generic(ldap, entry->dn[0], entry, this);
+    return d;
+  }
 }
 
 
@@ -202,4 +200,22 @@ object getPixmapfromFile(string filename)
   image_cache[filename]=GDK.Pixmap(p); 
   
   return image_cache[filename];
+}
+
+string getTypeofObject(array oc)
+{
+  string type="generic";
+  foreach(oc, string o)
+  {
+    o=lower_case(o);
+    if(o=="top") continue;
+    if(objectclass_map[o])
+    {
+      type=objectclass_map[o];
+      break;
+    }
+  }
+
+ return type;
+
 }

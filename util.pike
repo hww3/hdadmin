@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.9 2002-09-13 22:14:01 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.10 2002-10-17 21:20:01 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -576,10 +576,19 @@ class newMemberList
   }
 }
 
+mapping pixmapcache=([]);
+
+
 object getPixmapfromFile(string filename)
 {
-  object p=Image.PNG.decode(Stdio.read_file(filename));
-  return GDK.Pixmap(p);
+  if(pixmapcache[filename])
+    return pixmapcache[filename];
+  else
+  {
+    object p=Image.PNG.decode(Stdio.read_file(filename));
+    pixmapcache[filename]=p;
+    return GDK.Pixmap(p);
+  }
 }
 
 
@@ -618,8 +627,6 @@ class userentry
     dn=d;
     description=dc;
     name=n;
-    werror("name: " + name + " dn: " + dn + " description: " + description 
-+ "\n");
   }
 
 }
@@ -738,32 +745,3 @@ array climbtree(object t, object r, array a, mapping t2)
   return a;
 }
 
-string getTypeofObject(mixed oc)
-{
-  string type="generic";
-
-  if(search(oc, "posixAccount")>=0) type="user";
-  else if(search(oc, "posixaccount")>=0) type="user";
-  else if(search(oc, "shadowaccount")>=0) type="user";
-  else if(search(oc, "posixGroup")>=0) type="group"; 
-  else if(search(oc, "posixgroup")>=0) type="group"; 
-  else if(search(oc, "ipNetwork")>=0) type="network";
-  else if(search(oc, "nisMailAlias")>=0) type="mailalias";
-  else if(search(oc, "ipHost")>=0) type="host";
-
- return type;
-
-}
-
-string getStateofObject(string type, mixed entry)
-{
-  string state="";
-
-  if(entry["userpassword"] &&
-    entry["userpassword"][0]=="{crypt}*LK*")
-  {
-    state="locked";
-  }
-
-  return state;
-}

@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: generic.pike,v 1.2 2002-07-22 19:22:48 hww3 Exp $";
+constant cvs_version="$Id: generic.pike,v 1.3 2002-10-17 21:20:02 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -30,36 +30,49 @@ import GTK.MenuFactory;
 
 object ldap;
 
-string type="user";
+multiset supported_objectclasses(){return (<>);}
+
+string type="generic";
 
 string dn;
-string cn;
+string name="";
+string description="";
 string state;
 string uid;
 
 object popup;
 object popupmap;
 
-mapping data;
+mapping attributes;
 
 object this;
 
 int menuisup=0;
 
-void create(object l, object th, string n, string c, string t, string|void 
-u)
-{ 
-    state=t;
-    dn=n;
-    this=th;
-    cn=c;
-    if(u)
-      uid=u;
+void create(object|void l, string|void mydn, mapping|void att, object|void th)
+{  if(!l) return;
+
+  state="";
+  dn=mydn;
+  name=att->cn[0];
+  if(att->description)
+    description=att->description[0];
+  this=th;
   ldap=l;
+  attributes=att;
   generatePopupMenu(createPopupMenu());
   return;
+
 }
 
+object get_icon(string size)
+{
+  if(size=="small") size="-sm";
+  if(size=="verysmall") size="-vsm";
+  else size="";
+  if(state=="locked") size="-locked" + size;
+  return getPixmapfromFile("icons/user" + size + ".png");
+}
 
 void openProperties()
 {
@@ -68,7 +81,7 @@ void openProperties()
   string filter="objectclass=*";
   object res=ldap->search(filter);
   mapping info=res->fetch();
-
+  info=fix_entry(info);
   // check for the proper objectclasses
   array roc=({});
   for(int i=0; i< sizeof(info["objectclass"]); i++)
@@ -156,7 +169,7 @@ array createPopupMenu()
 void openMove(object r)
 {
   string txt;
-  txt=cn;
+  txt=name;
   object moveWindow=Gnome.Dialog("Move " +  txt + "...",
     GTK.GNOME_STOCK_BUTTON_OK, GTK.GNOME_STOCK_BUTTON_CANCEL);
   mapping td=([]);
@@ -200,7 +213,7 @@ void openDelete()
   int res=doDelete();
   if(res!=0)
     openError("An error occurred while trying to "
-      "delete an object: " + cn + "\n\n" +
+      "delete an object: " + name + "\n\n" +
       ldap->error_string(res));
   else   this->refreshView();
   return;

@@ -24,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.16 2002-09-13 22:14:00 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.17 2002-10-17 21:20:01 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.2.5"
 
@@ -37,6 +37,7 @@ object ldap;
 object win,status,leftpane,rightpane;
 object actions;
 
+mapping objectclass_map=([]);
 mapping preferences=([]);
 
 string ROOTDN;
@@ -424,17 +425,18 @@ array createPopupMenu(string type)
 
 mixed newActionsPopup()
 {
-  werror("got newactionspopup\n");
   array defs=({});
 
-  if(isConnected && treeselection) defs+=
-  ({
-    MenuDef( "New User...", openNew, "user" ),
-    MenuDef( "New Group...", openNew, "group" ),
-    MenuDef( "New Host...", openAbout, 0 ), 
-    MenuDef( "New Mail Alias...", openAbout, 0 ),
-    MenuDef( "<separator>", openDisconnect, 0 )
-    });
+  if(isConnected && treeselection)
+  {
+    foreach(
+      indices(Objects), string n)
+        if(Objects[n]()->writeable)
+        defs+=({MenuDef("New " + upper_case(n[0..0]) + n[1..] + "...", openNew, n)});
+
+   defs+=
+  ({    MenuDef( "<separator>", openDisconnect, 0 ) });
+  }
   if(isConnected) defs+=
   ({
     MenuDef( "Disconnect", openDisconnect, 0 )
@@ -449,8 +451,7 @@ mixed newActionsPopup()
 
 void openNew(string type)
 {
-    object d=rightpane->make_object((["name": "New " + type, "type": type,
-        "dn": "" ]), ldap, this_object());
+    object d=rightpane->make_object(type, ldap, this_object());
     d->openProperties();
 }
 
@@ -581,8 +582,10 @@ void setupContent()
   object pane=GTK.Hpaned();
   object scroller1=GTK.ScrolledWindow(0,0);
   leftpane=makeTree();
+werror("creating an objectview.\n");
   rightpane=.Objects.objectview(preferences->display->viewas);
   scroller1->add(leftpane);
+werror("done.\n");
   pane->set_position(200);
   pane->add1(scroller1);
   pane->add2(rightpane->box);
@@ -676,6 +679,7 @@ void showIcons(mixed what, object widget, mixed selected)
   current_selection=selected;
   string t=widget->node_get_text(selected, 0);
   rightpane->clear();
+  rightpane->freeze();
   if(t=="HyperActive Directory") return;
 
 #ifdef DEBUG
@@ -686,77 +690,17 @@ void showIcons(mixed what, object widget, mixed selected)
   ldap->set_basedn(data->dn);
 
   string filter="!(|(objectclass=organizationalunit)(objectclass=organization))";
-  object res=ldap->search(filter, ({"dn", "objectclass", "cn",
-     "description", "userpassword", "uid", "sn", "givenname"}));
-  array n=({});
-  array ent=({});
+  object res=ldap->search(filter);
   for(int i=0; i<res->num_entries(); i++)
   {
-    mapping m=res->fetch();
-    string nom="";
-    if(m["sn"] && m["givenname"])
-      nom=(m["sn"][0] + m["givenname"][0]);
-    n+=({nom});
-    ent+=({res->fetch()});
+    mapping entry=res->fetch();
+    rightpane->add_object(ldap, this_object(), entry);
     res->next();
   }
-  sort(n, ent);
-  rightpane->freeze();
-  foreach(reverse(ent), mapping entry)
-  {
-    string item="_unknown_";
-    string state="";
-
-    array oc=entry["objectclass"];
-    string dn=entry["dn"][0];
-#ifdef DEBUG
-    werror("checking type of entry for " + item + "\n");
-    werror(sprintf("%O", oc));
-#endif
-    type=getTypeofObject(oc);
-    state=getStateofObject(type, entry);
- 
-    catch(item=entry["cn"][0]);
-    string description="";
-    if(entry["description"])
-      description=entry["description"][0];
-    if(type=="user")
-    {
-    if(entry && !entry["sn"])
-	entry["sn"]=({""});
-    if(entry && !entry->givenname)
-    {
-       if(entry->gn)
-	 entry->givenname=entry->gn;
-       else
-         entry->givenname=({""});
-    }
- 
-      if(preferences->display->cn=="lastnamefirst")
-        item=entry["sn"][0] + ", " + entry["givenname"][0];
-      else if(preferences->display->cn=="firstnamefirst")
-        item=entry["givenname"][0] + " " + entry["sn"][0];
-    }
-    if(item && type[0..3]=="user")
-    {
-#ifdef DEBUG
-werror("title: " + item +"\n");
-#endif
-      rightpane->add_object(([ "title": item, "subtitle": entry["uid"][0], 
-	"name": item, "type": type, "state": state, 
-	"dn": entry["dn"][0], "uid": entry["uid"][0] ]), ldap, this_object());
-    }
-    else
-    {
-      rightpane->add_object((["title": (entry["description"]?entry["description"][0]:item),
-	"subtitle": item,
-	"name": item, "type": type, "description": description,
-	"state": state, "dn": entry["dn"][0] ]), ldap, this_object());
-    }
 #ifdef DEBUG
 werror("added item.\n");
 #endif
-  }
+rightpane->thaw();
 array dn2=({});
 array dnc=(data->dn/",");
 foreach(dnc, string d)

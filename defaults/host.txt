@@ -1,0 +1,7 @@
+([ /* 4 elements */
+  "objectclass":({ /* 7 elements */
+        "top",
+	"device",
+	"iphost"
+    })
+])

@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: user.pike,v 1.8 2002-07-25 22:03:14 hww3 Exp $";
+constant cvs_version="$Id: user.pike,v 1.9 2002-10-17 21:20:02 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -30,34 +30,55 @@ import GTK.MenuFactory;
 
 object ldap;
 
+multiset supported_objectclasses(){return (<"posixaccount", "user">);}
+
 string type="user";
+int writeable=1;
 
 string dn;
-string cn;
+string name="";
+string description="";
 string state;
 string uid;
 
 object popup;
 object popupmap;
 
-mapping data, info;
 
+mapping data, info;
+mapping attributes;
 object this;
 
 int menuisup=0;
 int newuser=0;  
 
-void create(object l, object th, string n, string c, string t, string|void u)
-{
-    state=t;
-    dn=n;
-    this=th;
-    cn=c;
-    if(u)
-      uid=u;
+void create(object|void l, string|void mydn, mapping|void att, object|void th)
+{  if(!l) return;
+
+  state="";
+  dn=mydn;
+  if(att && att->cn)
+    name=att->cn[0];
+  if(att && att->description)
+    description=att->description[0];
+  if(att && att->userpassword && att->userpassword[0]=="{crypt}*LK*")
+    state="locked";
+  this=th;
   ldap=l;
+  if(att)
+    attributes=att;
   generatePopupMenu(createPopupMenu());
   return;
+}
+
+
+object get_icon(string size)
+{
+  if(size=="small") size="-sm";
+  if(size=="verysmall") size="-vsm";
+  else size="";
+  if(state=="locked") size="-locked" + size;
+  return getPixmapfromFile("icons/user" + size + ".png");
 }
 
 string getNextUIDNumber()
@@ -493,13 +514,13 @@ werror(sprintf("CHANGES: %O\n", change));
 
 string makecn(mapping wc)
 {
-    if(wc && !wc->sn) wc->sn=data->sn[0];
+    if(wc && !wc->sn) wc->sn=attributes->sn[0];
     if(wc && !wc->givenname) 
     {
-      if(data->givenname)
-        wc->givenname=data->givenname[0];
-      else if(data->gn)
-        wc->givenname=data->gn[0];
+      if(attributes->givenname)
+        wc->givenname=attributes->givenname[0];
+      else if(attributes->gn)
+        wc->givenname=attributes->gn[0];
     }
     string fn;
     if(this->preferences->user_objects->cn=="firstnamefirst")
@@ -552,12 +573,12 @@ void applyProperties(mapping whatchanged, object widget, mixed args)
       werror("dn: " + dn + "\n");
 #endif
   
-    data=([]);
+    attributes=([]);
     loadData(); // load the user's data.
 #ifdef DEBUG
-      werror("data: " + sprintf("%O\n", data) + "\n");
+      werror("attributes: " + sprintf("%O\n", attributes) + "\n");
 #endif
-    info=data;
+    info=attributes;
       newuser=0;
     }
   }
@@ -684,14 +705,14 @@ void loadData()
 {
   if(dn=="") // we have a new object.
   {
-    data=loadDefaults();
+    attributes=loadDefaults();
     return;
   }
 #ifdef DEBUG
 werror("checking to see if we need to reload user data\n");
 #endif
 
-  if(data && sizeof(data)>0) return;
+  if(attributes && sizeof(attributes)>0) return;
 #ifdef DEBUG
 werror("loading user's data from LDAP\n");
 #endif
@@ -699,18 +720,18 @@ werror("loading user's data from LDAP\n");
   ldap->set_basedn(dn);
   string filter="objectclass=*";
   object res=ldap->search(filter);
-  data=fix_entry(res->fetch());
+  attributes=fix_entry(res->fetch());
 }
 
 mapping loadDefaults()
 {
   string defaults=Stdio.read_file("defaults/" + type + ".dat");
   if(!defaults) throw("Unable to read defaults for object type " + type);
-  data=decode_value(defaults);
+  attributes=decode_value(defaults);
 #ifdef DEBUG
-  werror("defaults: " + sprintf("%O", data) + "\n");
+  werror("defaults: " + sprintf("%O", attributes) + "\n");
 #endif
-  return data;
+  return attributes;
 }
 
 
@@ -727,7 +748,7 @@ void openProperties()
 
   loadData(); // load the user's data.
 
-  info=data;
+  info=attributes;
   werror("USER DATA: " + sprintf("%O", info) + "\n\n");
   if(dn=="") 
   {
@@ -1188,7 +1209,7 @@ int doRename(string fn)
       int res=resolveDependencies(dn, newdn, ldap);    
     }
   }
-  cn=fn; // set the object cn to our new name.
+  name=fn; // set the object cn to our new name.
   return 0;
 }
 
@@ -1241,7 +1262,7 @@ void openDisable()
   if(!res) 
   {
     openError("An error occurred while trying to "
-      "disable an user:\n\n User: " + cn + "\n\n" +
+      "disable an user:\n\n User: " + name + "\n\n" +
       ldap->error_string());
     return;        
   }
@@ -1254,7 +1275,7 @@ void openDelete()
   int res=doDelete();
   if(!res)
     openError("An error occurred while trying to "
-      "delete an user:\n\n User: " + cn + "\n\n" +
+      "delete an user:\n\n User: " + name + "\n\n" +
       ldap->error_string());
   else   this->refreshView();
   return;        
@@ -1263,13 +1284,13 @@ void openDelete()
 void openAddtoGroup()
 {
   string groupdn;
-  object addWindow=Gnome.Dialog("Add " + cn + " to a group...",
+  object addWindow=Gnome.Dialog("Add " + name + " to a group...",
   GTK.GNOME_STOCK_BUTTON_OK, GTK.GNOME_STOCK_BUTTON_CANCEL);
   object vbox=addWindow->vbox();
   array ag=getGroupsforMember(0, ldap);
 
   object allgroups=newGroupList(ag);
-  vbox->pack_start(GTK.Label("Choose a group to add " + cn + 
+  vbox->pack_start(GTK.Label("Choose a group to add " + name + 
 	" to:")->show(), 0,0,0);
   vbox->pack_start(allgroups->hb4->show(),0,0,0);
   addWindow->show();
@@ -1292,7 +1313,7 @@ void openAddtoGroup()
         if(!res) 
         {
           openError("An error occurred while trying to "
-   	  "add the following user to a group:\n\n User: " + cn + "\n\n" +
+   	  "add the following user to a group:\n\n User: " + name + "\n\n" +
   	ldap->error_string());
 //          refreshView();
           return;        
@@ -1306,7 +1327,7 @@ void openAddtoGroup()
 void openEnable()
 {
   string txt;
-  txt=cn;
+  txt=name;
   if(state!="locked")
   {
     openError("You may only enable disabled users.");
@@ -1346,7 +1367,7 @@ void openEnable()
       if(!res) 
       {
           openError("An error occurred while trying to "
-   	    "enable a user:\n\n User: " + cn + "\n\n" +
+   	    "enable a user:\n\n User: " + name + "\n\n" +
             ldap->error_string());
           return;        
       }
@@ -1367,7 +1388,7 @@ void openEnable()
 void openPassword(object r)
 {
   string txt;
-  txt=cn;
+  txt=name;
   object passwordWindow=Gnome.Dialog("Reset password for " +  txt + "...",
     GTK.GNOME_STOCK_BUTTON_OK, GTK.GNOME_STOCK_BUTTON_CANCEL);
   object vbox=passwordWindow->vbox();
@@ -1404,7 +1425,7 @@ void openPassword(object r)
       if(res!=0) 
       {
           openError("An error occurred while trying to "
-   	    "change a user's password:\n\n User: " + cn + "\n\n" +
+   	    "change a user's password:\n\n User: " + name + "\n\n" +
             ldap->error_string());
           return;        
       }
@@ -1422,7 +1443,7 @@ void openPassword(object r)
 void openMove(object r)
 {
   string txt;
-  txt=cn;
+  txt=name;
   object moveWindow=Gnome.Dialog("Move " +  txt + "...",
     GTK.GNOME_STOCK_BUTTON_OK, GTK.GNOME_STOCK_BUTTON_CANCEL);
   mapping td=([]);
