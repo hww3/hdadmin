@@ -1,0 +1,105 @@
+--- ldap_globals.h.orig	Thu Oct 25 14:30:55 2001
++++ ldap_globals.h	Thu Oct 25 14:30:11 2001
+@@ -25,6 +25,10 @@
+ #define LDAP_DEFAULT_VERSION    3
+ #define V3_REFERRALS		1
+ 
++#define LDAP_OPERATION_ADD	0
++#define LDAP_OPERATION_DELETE 	1
++#define LDAP_OPERATION_REPLACE 	2
++
+ #define QUOTED_COMMA		"%2c"
+ 
+ #ifdef DEBUG_PIKE_PROTOCOL_LDAP
+--- client.pike.orig	Thu Oct 25 14:35:42 2001
++++ client.pike	Thu Oct 25 14:43:30 2001
+@@ -341,7 +341,9 @@
+   //!
+   //! Create object. The first optional argument can be used later
+   //! for subsequence operations. The second one can specify
+-  //! TLS context of connection.
++  //! TLS context of connection. The default context only allows
++  //! 128-bit encryption methods, so you may need to provide your
++  //! own context if your LDAP server supports only export encryption.
+   //!
+   //! @param url
+   //!  LDAP server URL in form
+@@ -1077,13 +1079,72 @@
+     return (do_op(msgval));
+   }
+ 
++  private int|string send_modifydn_op(string dn, string newrdn,
++	int deleteoldrdn, string newsuperior) {
++  // MODIFY
+ 
+-  // API function (ldap_modify)
+-  //
+-  // modify(string dn, mapping(string:array(mix)) attropval)
+-  //
+-  //	dn:		DN of compared object
+-  //	attropval:	attribute(s), operation and value(s)
++    object msgval;
++    array seq=({ Standards.ASN1.Types.asn1_octet_string(dn),
++		      Standards.ASN1.Types.asn1_octet_string(newrdn),
++		      Standards.ASN1.Types.asn1_boolean(deleteoldrdn)
++		});
++	if(newsuperior) 
++          seq+=({Standards.ASN1.Types.asn1_octet_string(newsuperior)});
++
++    msgval = ASN1_APPLICATION_SEQUENCE(12, seq);
++
++    return (do_op(msgval));
++  }
++
++  //! API function (ldap_modifydn)
++  //!
++  //! modifydn(string dn, string newrdn, int deleteoldrdn, string newsuperior)
++  //!
++  //!	dn:		DN of source object
++  //!    newrdn:         RDN of destination
++  //!    deleteoldrdn:   Delete old rdn?
++  //!    newsuperior:    Immediately superior DN (optional)
++  //!
++  int modifydn (string dn, string newrdn, int deleteoldrdn,
++    string newsuperior) {
++ 
++    mixed raw;
++    object rv;
++
++    if (chk_ver())
++      return(-ldap_errno);
++    if (chk_binded())
++      return(-ldap_errno);
++    if (chk_dn(dn))
++      return(-ldap_errno);
++    if(ldap_version == 3) {
++      dn = string_to_utf8(dn);
++      newrdn = string_to_utf8(newrdn);
++      if(newsuperior) newsuperior = string_to_utf8(newsuperior);
++    }
++    if(intp(raw = send_modifydn_op(dn, newrdn, deleteoldrdn, newsuperior))) {
++      THROW(({error_string()+"\n",backtrace()}));
++      return(-ldap_errno);
++    }
++
++    rv = result(({raw}));
++    DWRITE_HI(sprintf("client.MODIFYDN: %s\n", rv->error_string()));
++    return (seterr (rv->error_number()));
++
++}  //modifydn
++
++  //! API function (ldap_modify)
++  //!
++  //! modify(string dn, mapping(string:array(mix)) attropval)
++  //!
++  //!	dn:		DN of compared object
++  //!	attropval:	attribute(s), operation and value(s)
++  //!
++  //!   attropval=([ attribute: ({operation, value, ...}) ])
++  //!  
++  //!   where operation is one of the following: LDAP_OPERATION_ADD (0),
++  //!   LDAP_OPERATION_DELETE (1) or LDAP_OPERATION_REPLACE (2).
++  //!
+   int modify (string dn, mapping(string:array(mixed)) attropval) {
+ 
+     int id;
