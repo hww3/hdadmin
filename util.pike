@@ -24,17 +24,47 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.4 2002-07-19 21:43:40 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.5 2002-07-22 19:22:48 hww3 Exp $";
 
 import GTK.MenuFactory;
 
 class LDAPConn
 {
-    inherit Protocols.LDAP.client;
+  inherit Protocols.LDAP.client;
 
-    string ROOTDN, ROOTPW, LDAPHOST;
-    string BASEDN;
+  string ROOTDN, ROOTPW, LDAPHOST;
+  string USER, USERPASS;
+  string BASEDN;
 
+  int agressive_modify(string cdn, mapping change)
+  {
+    int res;
+    res=modify(cdn, change);
+    mixed r=get_referrals();
+    werror("Referrals: " + sprintf("%O", r) + "\n");
+    if(!res && r)
+    {
+      foreach(({}), string ref)
+      {
+         werror("Attempting connection to " + ref + "...\n");
+         object context=SSL.context();
+         object lref;
+         catch(lref=Protocols.LDAP.client(ref, context));
+         if(!lref) continue;
+         werror("Connected.\n");
+         res=lref->bind(USER, USERPASS);
+         if(!res) continue;
+         werror("Bound.\n");
+         lref->set_basedn(BASEDN);
+         res=lref->modify(cdn, change);
+         werror("Ran modify, res=" + res + ", error=" + 
+             lref->error_number() + ".\n");
+         if(!res) break;
+         else continue;
+      }
+    }
+    return res;
+  }
 }
 
 mapping loadPreferences()
@@ -269,7 +299,7 @@ if(!res) return ldap->error_number();
 void openError(string msg)
 {
   object errMsg=Gnome.MessageBox(msg,
-    Gnome.MessageBoxError, Gnome.StockButtonCancel);    
+    Gnome.MessageBoxError, Gnome.StockButtonOk, Gnome.StockButtonCancel);    
   errMsg->set_usize(325, 175);
   errMsg->run();
 }

@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: user.pike,v 1.5 2002-06-03 20:10:27 hww3 Exp $";
+constant cvs_version="$Id: user.pike,v 1.6 2002-07-22 19:22:48 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -247,7 +247,7 @@ werror("adding entry: " + sprintf("%O", entry) + "\n");
 #endif
     res=ldap->add(whatchanged->dn, entry);
 
-    if(res) return res;
+    if(!res) return ldap->error_number();
 
     if(whatchanged->createhome) // let us create the home directory
     {
@@ -355,14 +355,14 @@ werror("adding entry: " + sprintf("%O", entry) + "\n");
       if(autohdn) // found one, so change it.
       { 
         res=ldap->modifydn(autohdn, "cn=" + whatchanged->uid, 1);
-        if(res) return res;
+        if(!res) return ldap->error_number();
         autohdn=getAutoHomeDN(whatchanged->uid, ldap);
-        res=ldap->modify(autohdn, (["cn": ({2, whatchanged->uid})]));
-        if(res) return res;
+        res=ldap->aggressive_modify(autohdn, (["cn": ({2, whatchanged->uid})]));
+        if(!res) return ldap->error_number();
       }
       // then change the dn.
       res=ldap->modifydn(whatchanged->dn, "uid=" + whatchanged->uid, 1);
-      if(res) return res;
+      if(!res) return ldap->error_number();
       newdn=(whatchanged->dn/",");
       newdn[0]="uid=" + whatchanged->uid;
       whatchanged->dn=newdn*",";
@@ -414,8 +414,8 @@ werror("adding entry: " + sprintf("%O", entry) + "\n");
 werror(sprintf("CHANGES: %O\n", change));
 #endif
 
-    res=ldap->modify(dn, change);
-    if(res) return res;
+    res=ldap->agressive_modify(dn, change);
+    if(!res) return ldap->error_number();
 #ifdef DEBUG
    werror("done.\n");
 #endif
@@ -439,7 +439,7 @@ werror(sprintf("CHANGES: %O\n", change));
       werror("deleting the autohome record...");
 #endif
       res=ldap->delete(autohomedirectorydn);
-      if(res) return res;
+      if(!res) return ldap->error_number();
 #ifdef DEBUG
       werror("done.\n");
 #endif
@@ -454,10 +454,10 @@ werror(sprintf("CHANGES: %O\n", change));
 #ifdef DEBUG
        werror("modifying the autohome directory record...");
 #endif
-       res=ldap->modify(autohomedirectorydn, ([ 
+       res=ldap->aggressive_modify(autohomedirectorydn, ([ 
               "nismapentry": ({2, whatchanged->autohomedirectory})
               ]));
-       if(res) return res;
+       if(!res) return ldap->error_number();
 #ifdef DEBUG
       werror("done.\n");
 #endif
@@ -527,12 +527,11 @@ void applyProperties(mapping whatchanged, object widget, mixed args)
     if(checkUserChanges(whatchanged->dn, whatchanged))
       return;
     else res=doUserChanges(whatchanged->dn, whatchanged);
-    if(res!=0)
+    if(res)
     {
-     
-      ldap->ldap_errno=res;
       openError("An error occurred while modifying a user: " +
-	"\n\n" + res + " " + ldap->error_string(res));
+	"\n\n" + ldap->error_number() + " " + 
+        ldap->error_string(ldap->error_number()));
       widget->close();
       return;
     }   
@@ -668,7 +667,8 @@ int addUsertoGroup(string groupdn)
   int res=ldap->modify(groupdn, (["memberuid": ({ 0, uid}),
 			"uniquemember": ({ 0, dn})
     ]));
-  return res;
+  if(!res) return ldap->error_number();
+  else return 0;
 }
 
 int removeUserfromGroup(string groupdn)
@@ -676,7 +676,8 @@ int removeUserfromGroup(string groupdn)
   int res=ldap->modify(groupdn, (["memberuid": ({ 1, uid}),
 			"uniquemember": ({ 1, dn})
     ]));
-  return res;
+  if(!res) return ldap->error_number();
+  else return 0;
 }
 
 void loadData()
@@ -1053,7 +1054,7 @@ foreach(selection, int row)
     useautohome->set_active(1);
     useautohome->toggled();
   }
-  werror(sprintf("%O\n", sort(indices(groupstab))));
+//  werror(sprintf("%O\n", sort(indices(groupstab))));
 //  generaltab->show();
   addPagetoProperties(generaltab, "General", propertiesWindow);
   addPagetoProperties(accounttab, "Account", propertiesWindow);
@@ -1133,7 +1134,8 @@ int doMove(object new)
   werror("getting ready to move " + newrdn + " to new dn: " + new->dn + "\n");
 #endif
   int res=ldap->modifydn(dn, newrdn, 1, newrdn+","+new->dn);
-  return res; // non-zero if failure.
+  if(!res) return ldap->error_number();
+  else return 0;
 }
 
 int doEnable(string password)
@@ -1149,7 +1151,8 @@ int doEnable(string password)
 #ifdef DEBUG
   werror(sprintf("%O\n", change));
 #endif
-  return res;
+  if(!res) return ldap->error_number();
+  else return 0;
 }
 
 int doPassword(string password)
@@ -1165,7 +1168,8 @@ int doPassword(string password)
 #ifdef DEBUG
   werror(sprintf("%O\n", change));
 #endif
-  return res;
+  if(!res) return ldap->error_number();
+  else return 0;
 }
 
 int doRename(string fn)
@@ -1174,31 +1178,29 @@ int doRename(string fn)
   firstcomp-=" ";
   int res;
   res=ldap->modify(dn, (["gecos":({2, fn})]));
-  if(res) return res;
+  if(!res) return ldap->error_number();
   res=ldap->modify(dn, (["cn":({2, fn})]));
-  if(res) return res;
+  if(!res) return ldap->error_number();
   string newrdn="cn=" + fn;
   if(firstcomp=="cn")  // we have to modify the dn as well.
   {
     string newdn=({newrdn, (dn/",")[1..]})*",";
     int res=ldap->modifydn(dn, newrdn, 1);
-    if(res) // sucess code should be 0
-    {
-      return res; 
-    }
+    if(!res) return ldap->error_number();
     else
     {
       int res=resolveDependencies(dn, newdn, ldap);    
     }
   }
   cn=fn; // set the object cn to our new name.
-  return res;
+  return 0;
 }
 
 int doDisable()
 {
   int res=ldap->modify(dn, (["userpassword":({2, "{crypt}*LK*"})]));
-  return res;
+  if(!res) return ldap->error_number();
+  return 0;
 }
 
 int doDelete()
@@ -1227,11 +1229,11 @@ int doDelete()
   if(ahdn)
   {
     res=ldap->delete(ahdn);
-    if(res) 
-      return res;
+    if(!res) return ldap->error_number();
   }
   res=ldap->delete(dn);
-  return res;
+  if(!res) return ldap->error_number();
+  else return 0;
   }
   else werror("Unable to find userid for " + dn + "\n");
 }

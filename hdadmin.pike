@@ -24,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.13 2002-07-19 21:43:40 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.14 2002-07-22 19:22:48 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.20"
 
@@ -104,7 +104,8 @@ void doLDIFSave(object what, object widget, mixed ... args)
 //    write("file " + outputfile + " exists...\n");
   {
     object c=Gnome.MessageBox("File exists...", 
-      GTK.GNOME_STOCK_BUTTON_CANCEL, GTK.GNOME_STOCK_BUTTON_OK);    
+      Gnome.MessageBoxError,
+      Gnome.StockButtonOk, Gnome.StockButtonCancel);
 /*
 "The file you chose already
 exists.\n" +
@@ -178,8 +179,8 @@ void openConnect()
     return;
   }
   connectWindow=Gnome.Dialog("Connect to LDAP Server",
-	GTK.GNOME_STOCK_BUTTON_OK ,
-	GTK.GNOME_STOCK_BUTTON_CANCEL);
+	Gnome.StockButtonOk ,
+	Gnome.StockButtonCancel);
   connectWindow->set_usize(300,0);
   object vbox=connectWindow->vbox();
   object host=Gnome.Entry("LDAPHOST");
@@ -284,7 +285,8 @@ int doConnect(string host, string username, string password, string basedn)
       if(rslts->num_entries()!=1) // didn't find the person
       {
         object c=Gnome.MessageBox("Login incorrect (check your userid).",
-        GTK.GNOME_MESSAGE_BOX_ERROR, GTK.GNOME_STOCK_BUTTON_OK);    
+	  Gnome.MessageBoxError, Gnome.StockButtonOk, 
+	  Gnome.StockButtonCancel);    
         c->set_usize(275, 150);
         c->show();
         c->run_and_close();
@@ -297,13 +299,19 @@ int doConnect(string host, string username, string password, string basedn)
     }
     int r=ldap->bind(username, password, 3);
     if(r!=1) {
-      object c=Gnome.MessageBox(ldap->error_string(),
-      GTK.GNOME_MESSAGE_BOX_ERROR, GTK.GNOME_STOCK_BUTTON_OK);    
+      object c=Gnome.MessageBox(ldap->error_string(), 
+	Gnome.MessageBoxError,
+        Gnome.StockButtonOk);    
       c->set_usize(275, 150);
       c->show();
       c->run_and_close();
       return 1;
     }
+
+    ldap->LDAPHOST=host;
+    ldap->USER=username;
+    ldap->USERPASS=password;
+
     populateTree(leftpane, treedata, ldap);
     isConnected=1;
     return 0;
@@ -389,9 +397,6 @@ void openHostProperties(object dn)
 
   object vbox=propertiesWindow->vbox();
   vbox->show();
-//      "So you want to see information about the Host "+ dn->dn + "?\n\n"
-//      + message,  
-//      GTK.GNOME_MESSAGE_BOX_INFO, Gnome.StockButtonOk);
   propertiesWindow->show();
   return;
 }
@@ -681,8 +686,8 @@ void showIcons(mixed what, object widget, mixed selected)
   ldap->set_basedn(data->dn);
 
   string filter="!(|(objectclass=organizationalunit)(objectclass=organization))";
-  object res=ldap->search(filter, 0, ({"dn", "objectclass", "cn",
-	"userpassword", "uid", "sn", "givenname"}));  
+  object res=ldap->search(filter, ({"dn", "objectclass", "cn",
+     "userpassword", "uid", "sn", "givenname"}));
   array n=({});
   array ent=({});
   for(int i=0; i<res->num_entries(); i++)

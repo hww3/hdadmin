@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: generic.pike,v 1.1 2002-04-29 23:39:45 hww3 Exp $";
+constant cvs_version="$Id: generic.pike,v 1.2 2002-07-22 19:22:48 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -214,7 +214,8 @@ int doMove(object new)
   "\n");
 #endif
   int res=ldap->modifydn(dn, newrdn, 1, newrdn+","+new->dn);
-  return res; // non-zero if failure.
+  if(!res) return ldap->error_number();
+  else return 0; // non-zero if failure.
 }
 
 
@@ -234,7 +235,8 @@ int doDelete()
   if(rx->dn)
   {  
   res=ldap->delete(dn);
-  return res; 
+  if(!res) return ldap->error_number();
+  else return 0; 
   }
   else werror("Unable to find object " + dn + "\n");
 }
