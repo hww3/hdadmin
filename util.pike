@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.7 2002-07-23 20:43:19 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.8 2002-07-25 22:03:13 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -221,7 +221,7 @@ int getGidfromName(string n, object ldap)
 #endif
   if(r->num_entries()==0)
    return -1;
-  else return (int)(r->fetch()["gidnumber"][0]);
+  else return (int)(fix_entry(r->fetch())["gidnumber"][0]);
 }
 
 array getUidfromUidnumber(string n, object ldap)
@@ -235,7 +235,7 @@ array getUidfromUidnumber(string n, object ldap)
   array g=({});
   for(int i=0; i<r->num_entries(); i++)
   {
-    g+=({r->fetch()["cn"][0]});
+    g+=({fix_entry(r->fetch())["cn"][0]});
     r->next();
   }
   return g;
@@ -249,7 +249,7 @@ string|int getNamefromGid(string g, object ldap)
   object r=ldap->search(filter);
   if(r->num_entries()==0)
    return -1;
-  else return (string)(r->fetch()["cn"][0]);
+  else return (string)(fix_entry(r->fetch())["cn"][0]);
 }
 
 string|int getUidfromDN(string dn, object ldap)
@@ -260,7 +260,7 @@ string|int getUidfromDN(string dn, object ldap)
   werror("getUidfromDN: " + r->num_entries() + " rows\n");
   if(r->num_entries()==0)
    return -1;
-  else return (string)(r->fetch()["cn"][0]);
+  else return (string)(fix_entry(r->fetch())["cn"][0]);
 }
 
 int isaNumber(string|array n)
@@ -287,7 +287,7 @@ string getAutoHomeDN(string uid, object ldap)
   object r=ldap->search(filter1);
   if(r->num_entries()>0)
   {
-    autohomedirectorydn=r->fetch()["dn"][0];
+    autohomedirectorydn=fix_entry(r->fetch())["dn"][0];
   }
   return autohomedirectorydn;
 }
@@ -342,18 +342,31 @@ array getGroupsforMember(string|void uid, object ldap)
   else for(int i=0; i< r->num_entries(); i++)
   {
 //   werror("got group...\n");
+  mapping m=fix_entry(r->fetch());
   string desc="";
-  if(r->fetch()["description"])
-    desc=r->fetch()["description"][0];
-//    werror(sprintf("%O\n", r->fetch()));
-    array gt=({r->fetch()["cn"][0], desc,
-          r->fetch()["dn"][0], r->fetch()["gidnumber"][0]});
+  if(m["description"])
+    desc=m["description"][0];
+    array gt=({m["cn"][0], desc,
+          m["dn"][0], m["gidnumber"][0]});
     g+=({gt}); 
     r->next();
   }
   return g;
 }
 
+mapping fix_entry(mapping orig)
+{
+  foreach(indices(orig), string att)
+  {  
+    if(att!=lower_case(att))
+    {
+      orig[lower_case(att)]=orig[att];
+      m_delete(orig, att);
+    }
+  }
+
+  return orig;
+}
 int resolveDependencies(string dn, string newdn, object ldap)
 {
   // check to see if we have any group dependencies.
@@ -366,7 +379,7 @@ int resolveDependencies(string dn, string newdn, object ldap)
         // assume we are only changing the first item of the dn.
         for(int i=0; i<nr; i++)
         {
-        mixed entry=r->fetch();
+        mixed entry=fix_entry(r->fetch());
 string uid=(((dn/",")[0])/"=")[1];
 string newuid=(((newdn/",")[0])/"=")[1];
 int res;

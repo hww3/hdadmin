@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: user.pike,v 1.7 2002-07-22 20:09:44 hww3 Exp $";
+constant cvs_version="$Id: user.pike,v 1.8 2002-07-25 22:03:14 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -235,7 +235,7 @@ int doUserChanges(string dn, mapping whatchanged)
 #ifdef DEBUG
     werror("creating a new account for " + whatchanged->dn + "\n");
 #endif
-
+    string uid;
     mapping entry=([]);
     foreach(indices(wc), string attribute)
        if(!arrayp(wc[attribute]))
@@ -330,7 +330,8 @@ werror("adding entry: " + sprintf("%O", entry) + "\n");
     ldap->set_basedn(whatchanged->dn);
     object rx=ldap->search("objectclass=*");
     if(rx->num_entries()==0) return 32; // no such user
-    string uid=rx->fetch()["uid"][0];
+    uid=fix_entry(rx->fetch())["uid"][0];
+    werror("UID: " + uid + "\n");
     if(whatchanged->uid) // we need to change the userid.
     { 
       // first, check to see that the userid isn't already taken.
@@ -428,7 +429,7 @@ werror(sprintf("CHANGES: %O\n", change));
 #ifdef DEBUG
       werror("working on autohome record...");
 #endif
- 
+    werror("UID: " + uid + "\n");
     string autohomedirectorydn=getAutoHomeDN(uid, ldap);
 #ifdef DEBUG
       werror("autohome dn:" + autohomedirectorydn + "\n");
@@ -698,11 +699,7 @@ werror("loading user's data from LDAP\n");
   ldap->set_basedn(dn);
   string filter="objectclass=*";
   object res=ldap->search(filter);
-  string message=sprintf("%O", res->fetch());
-#ifdef DEBUG
-werror("User Data: " + message + "\n");
-#endif
-  data=res->fetch();
+  data=fix_entry(res->fetch());
 }
 
 mapping loadDefaults()
@@ -730,8 +727,8 @@ void openProperties()
 
   loadData(); // load the user's data.
 
-
   info=data;
+  werror("USER DATA: " + sprintf("%O", info) + "\n\n");
   if(dn=="") 
   {
     whatchanged=info;
@@ -1047,7 +1044,7 @@ foreach(selection, int row)
 #ifdef DEBUG
     werror("got an auto_home directory!\n");
 #endif
-    mapping rs=r->fetch();
+    mapping rs=fix_entry(r->fetch());
     autohomedirectorydn=rs["dn"][0];
     autohomedirectory->set_text(rs["nismapentry"][0]);
     useautohome->set_active(1);
@@ -1211,9 +1208,9 @@ int doDelete()
   ldap->set_basedn(dn);
   object r=ldap->search("objectclass=*");
 #ifdef DEBUG
-  werror(sprintf("%O\n", r->fetch()));
+  werror(sprintf("%O\n", fix_entry(r->fetch())));
 #endif
-  array rx=r->fetch();
+  mapping rx=fix_entry(r->fetch());
   if(rx->uid)
   {
     string uid=rx["uid"][0];
