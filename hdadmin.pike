@@ -24,9 +24,9 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.14 2002-07-22 19:22:48 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.15 2002-07-23 20:53:52 hww3 Exp $";
 
-#define HDADMIN_VERSION "0.20"
+#define HDADMIN_VERSION "0.2.5"
 
 inherit "util.pike";
 import GTK.MenuFactory;

@@ -2,14 +2,14 @@ Requirements:
 
 GTK+
 Gnome
-Pike 7.3.13+ compiled with Gnome/GTK patches from patches directory
+Pike 7.3.49 compiled with GTK and Gnome support.
 
 Usage:
 
-copy hdadmin-0.2.0/hdadmin_defaults.conf to /etc/hdadmin.conf 
+copy hdadmin-0.2.5/hdadmin_defaults.conf to /etc/hdadmin.conf 
 and edit as needed.
 
-$ cd hdadmin-0.2.0
+$ cd hdadmin-0.2.5
 $ pike -M. hdadmin.pike
 
 If you don't run pike with the -M. flag, you'll get compilation errors.
@@ -19,8 +19,9 @@ program, you should get a feel for its use without too much difficulty. As
 a general rule, right clicking on an object will show you the options
 available for that object.
 
-Website:
+Useful Websites:
 
 http://hww3.riverweb.com/hdadmin
+http://pike.ida.liu.se/
 
 Copyright (c) 2001,2002 Bill Welliver <hww3@riverweb.com>
