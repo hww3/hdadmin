@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.8 2002-04-11 20:22:06 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.9 2002-04-29 23:34:16 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.20"
 
@@ -51,7 +51,6 @@ write("Starting HyperActive Directory Administrator " + HDADMIN_VERSION +  "...\
 // let's load the preferences.
 
 preferences=loadPreferences();
-werror(sprintf("%O", preferences));
 // start up the ui...
 
 Gnome.init("HDAdmin", HDADMIN_VERSION , argv);
@@ -120,11 +119,11 @@ exists.\n" +
 //  write("writing objects to " + outputfile + "\n");
   string output="";
 
-  array selected=rightpane->get_selected_icons();
+  array selected=rightpane->get_selected_objects();
 
   foreach(selected, int sel) 
   {
-    object data=rightpane->get_icon_data(sel);
+    object data=rightpane->get_object(sel);
     ldap->set_scope(2);
     ldap->set_basedn(data->dn);
     string filter="objectclass=*";
@@ -146,7 +145,7 @@ void closeSaveWindow(object what, object widget, mixed ... args)
 
 void openSaveWindow()
 {
-  array selected=rightpane->get_selected_icons();
+  array selected=rightpane->get_selected_objects();
   if(sizeof(selected)<1)
   {
     openError("You must select an object to save.");
@@ -322,20 +321,27 @@ void openAbout()
   return;
  }
 
-void openProperties()
+void openFixCN()
 {
   array dns=getDNfromSelection();
-  foreach(dns, object dn)
+  foreach(dns, object o)
   {
-    if(dn->type=="user")
-      dn->openProperties();
-    else if(dn->type=="host")
-      openHostProperties(dn);
-    else openGenericProperties(dn);
+    if(o->fixcn)
+      o->fixcn(([]));
   }
-
 }
 
+void openPreferences()
+{
+  object aboutWindow;
+  aboutWindow = Gnome.About("HyperActive Directory Administrator",
+				HDADMIN_VERSION, "(c) Bill Welliver 2002",
+				({"Bill Welliver", ""}),
+				"Manage your LDAP directory with style.",
+				"icons/spiral.png");
+  aboutWindow->show();
+  return;
+ }
 
 void openHostProperties(object dn)
 {
@@ -388,57 +394,6 @@ void openHostProperties(object dn)
   return;
 }
 
-void openGenericProperties(object dn)
-{
-  ldap->set_scope(2);
-  ldap->set_basedn(dn->dn);
-  string filter="objectclass=*";
-  object res=ldap->search(filter);
-  mapping info=res->fetch();
-
-  // check for the proper objectclasses
-  array roc=({});
-  for(int i=0; i< sizeof(info["objectclass"]); i++)
-  {
-    info["objectclass"][i]=lower_case(info["objectclass"][i]);
-  }
-  foreach(roc, string oc1)
-  {
-    if(search(info["objectclass"], oc1)==-1)  // do we have this objectclass?
-    {
-#ifdef DEBUG
-      werror("adding objectclass " + oc1 + " for host " + dn->dn + "\n");
-#endif
-      ldap->modify(dn->dn, (["objectclass": ({0, oc1})]));    
-    }
-  }
-
-  object propertiesWindow;
-  propertiesWindow = Gnome.PropertyBox();
-  propertiesWindow->set_title("Properties of object " + info->cn[0]);
-
-  object generaltab=GTK.Vbox(0, 0);
-  generaltab->show();
-  addPagetoProperties(generaltab, "General", propertiesWindow);
-
-  object objectsource=GTK.Text();
-  objectsource->set_usize(250,250);
-  object sourcetab=GTK.Vbox(0, 0);
-  sourcetab->pack_start_defaults(objectsource->show());
-  sourcetab->show();
-  addPagetoProperties(sourcetab, "Object Definition", propertiesWindow);
-
-  objectsource->set_text(generateLDIF(info));
-
-  object vbox=propertiesWindow->vbox();
-  vbox->show();
-//      "So you want to see information about the Host "+ dn->dn + "?\n\n"
-//      + message,  
-//      GTK.GNOME_MESSAGE_BOX_INFO, Gnome.StockButtonOk);
-  propertiesWindow->show();
-  return;
-}
-
 object generatePopupMenu(array defs)
 {
  
@@ -462,11 +417,12 @@ array createPopupMenu(string type)
 
 mixed newActionsPopup()
 {
+  werror("got newactionspopup\n");
   array defs=({});
 
   if(isConnected && treeselection) defs+=
   ({
-    MenuDef( "New User...", openAbout, 0 ),
+    MenuDef( "New User...", openNew, "user" ),
     MenuDef( "New Group...", openAbout, 0 ),
     MenuDef( "New Host...", openAbout, 0 ), 
     MenuDef( "New Mail Alias...", openAbout, 0 ),
@@ -482,6 +438,13 @@ mixed newActionsPopup()
 
  [object menu, object map]=PopupMenuFactory( @defs);
   return menu;
+}
+
+void openNew(string type)
+{
+    object d=rightpane->make_object((["name": "New " + type, "type": type,
+        "dn": "" ]), ldap, this_object());
+    d->openProperties();
 }
 
 void refreshView()
@@ -534,8 +497,15 @@ void setupMenus()
     GTK.MenuFactory.MenuDef( "File/<separator>", 0, 0 ),
     GTK.MenuFactory.MenuDef( "File/Quit...", appQuit, 0 ),
     GTK.MenuFactory.MenuDef( "Edit/Copy DN", openAbout, 0 ),
+    GTK.MenuFactory.MenuDef( "Edit/Select All...", doSelectAllIcons, 0 ),
+    GTK.MenuFactory.MenuDef( "Edit/Preferences...", openPreferences, 0 ),
+    GTK.MenuFactory.MenuDef( "View/<radio:viewas>Icons", 
+viewAsIcons, 0 
+),
+    GTK.MenuFactory.MenuDef( "View/<radio:viewas>List", 
+viewAsList, 0 ),
+    GTK.MenuFactory.MenuDef( "View/<separator>...", 0, 0 ),
     GTK.MenuFactory.MenuDef( "View/Refresh...", refreshView, 0 ),
-
     GTK.MenuFactory.MenuDef( "Help/About...", openAbout, 0 ),
   });
 
@@ -556,6 +526,24 @@ void setupMenus()
 }
   
 int cont;
+
+void viewAsList()
+{
+  rightpane->change_view("list");
+  refreshView();
+}
+
+void viewAsIcons()
+{
+  rightpane->change_view("icons");
+  refreshView();
+}
+
+void doSelectAllIcons()
+{
+  rightpane->select_all_objects();
+  return;
+}
 
 void setupStatus()
 {
@@ -587,20 +575,15 @@ void setupContent()
   object scroller1=GTK.ScrolledWindow(0,0);
   object scroller2=GTK.ScrolledWindow(0,0);
   leftpane=makeTree();
-  rightpane=Gnome.IconList(40, 0);
+  rightpane=.Objects.objectview(preferences->display->viewas);
   scroller1->add(leftpane);
-  scroller2->add(rightpane);
+  scroller2->add(rightpane->box);
   pane->set_position(200);
   pane->add1(scroller1);
   pane->add2(scroller2);
   scroller1->show();
   scroller2->show();
   leftpane->show();
-  rightpane->set_separators(" ");
-  rightpane->set_icon_width(65);
-//  rightpane->set_col_spacing(55);
-  rightpane->set_selection_mode(GTK.SELECTION_MULTIPLE);
-  rightpane->show();
   win->set_contents(pane);
 }
 
@@ -635,7 +618,6 @@ void mapitem(mapping td, array r, object t, object parent, string myroot)
   }
 
   godown(t, td, ({newrow, r[1]}), td->root);
-//  werror(sprintf("tree: %O\n", td));
 }
 
 void godown(object tree, mapping treedata, array row, object parent)
@@ -684,12 +666,14 @@ else
 
 void showIcons(mixed what, object widget, mixed selected)
 {
+  string type;
+
   rightpane->signal_disconnect(clickevent);
   current_selection=selected;
   string t=widget->node_get_text(selected, 0);
   rightpane->clear();
   if(t=="HyperActive Directory") return;
-  string type;
+
 #ifdef DEBUG
   werror("getting values for " + t + "\n");
 #endif
@@ -708,42 +692,50 @@ void showIcons(mixed what, object widget, mixed selected)
     string nom="";
     if(m["sn"] && m["givenname"])
       nom=(m["sn"][0] + m["givenname"][0]);
-//  werror("name: " + nom + "\n");
     n+=({nom});
     ent+=({res->fetch()});
     res->next();
   }
   sort(n, ent);
+  rightpane->freeze();
   foreach(reverse(ent), mapping entry)
   {
     string item="_unknown_";
     string state="";
 
-    catch(item=entry["cn"][0]);
     array oc=entry["objectclass"];
     string dn=entry["dn"][0];
 #ifdef DEBUG
     werror("checking type of entry for " + item + "\n");
     werror(sprintf("%O", oc));
 #endif
-    if(search(oc, "posixAccount")>=0) type="user";
-    else if(search(oc, "shadowaccount")>=0) type="user";
-    else if(search(oc, "posixGroup")>=0) type="group";
-    else if(search(oc, "ipNetwork")>=0) type="network";
-    else if(search(oc, "nisMailAlias")>=0) type="mailalias";
-    else if(search(oc, "ipHost")>=0) type="host";
-    else type="unknown";
-    if(type=="user" && entry["userpassword"] && 
-      entry["userpassword"][0]=="{crypt}*LK*")
-    {    
-      type="user";
-      state="locked";
+    type=getTypeofObject(oc);
+    state=getStateofObject(type, entry);
+ 
+    catch(item=entry["cn"][0]);
+    if(type=="user")
+    {
+    if(entry && !entry["sn"])
+	entry["sn"]=({""});
+    if(entry && !entry->givenname)
+    {
+       if(entry->gn)
+	 entry->givenname=entry->gn;
+       else
+         entry->givenname=({""});
+    }
+ 
+      if(preferences->display->cn=="lastnamefirst")
+        item=entry["sn"][0] + ", " + entry["givenname"][0];
+      else if(preferences->display->cn=="firstnamefirst")
+        item=entry["givenname"][0] + " " + entry["sn"][0];
     }
     if(item && type[0..3]=="user")
-      addIcon(([ "name": item, "type": type, "state": state, "dn": 
-	entry["dn"][0], "uid": entry["uid"][0] ]), rightpane);
+      rightpane->add_object(([ "name": item, "type": type, "state": state, 
+	"dn": entry["dn"][0], "uid": entry["uid"][0] ]), ldap, this_object());
     else
-      addIcon((["name": item, "type": type, "dn": entry["dn"][0] ]), rightpane);
+      rightpane->add_object((["name": item, "type": type, 
+	"dn": entry["dn"][0] ]), ldap, this_object());
 #ifdef DEBUG
 werror("added item.\n");
 #endif
@@ -753,11 +745,12 @@ array dnc=(data->dn/",");
 foreach(dnc, string d)
   dn2+=({(d/"=")[1]});
 string ndn=reverse(dn2)*"/";
+rightpane->thaw();
 pushStatus("Viewing " + res->num_entries() + " items in " + ndn +
 ".\n");
 clickevent=rightpane->signal_connect(GTK.button_press_event, clickIconList, 0);
-rightpane->signal_connect("select_icon", selectIcon, 0);
-rightpane->signal_connect("unselect_icon", unselectIcon, 0);
+rightpane->signal_connect("select", selectIcon, 0);
+rightpane->signal_connect("unselect", unselectIcon, 0);
 
 }
 
@@ -770,17 +763,18 @@ int clickIconList(object what, object widget, mixed selected)
   array n;
 
   if(menuisup==0 && popupmenu) popupmenu=0;
-
+#ifdef DEBUG
   werror(sprintf("%O ", selected->button));
   werror(sprintf("%O\n", selected->type));
+#endif
   if( selected->button == 3 ) 
   {
-    array n=rightpane->get_selected_icons();
+    array n=rightpane->get_selected_objects();
     object data;
 
     if(sizeof(n)>=1) 
     {
-      data=rightpane->get_icon_data(n[0]);
+      data=rightpane->get_object(n[0]);
     }
   
     if(data && data->showpopup) 
@@ -792,12 +786,10 @@ int clickIconList(object what, object widget, mixed selected)
 
   else if(selected->type=="2button_press" && selected->button==1)
   {
-    werror("got a 2 button press on #1\n");
-    n=rightpane->get_selected_icons();
-
+    n=rightpane->get_selected_objects();
     if(sizeof(n)>=1) 
     {
-      data=rightpane->get_icon_data(n[0]);
+      data=rightpane->get_object(n[0]);
       data->openProperties();
     }
     return 0;
@@ -811,7 +803,6 @@ int clickIconList(object what, object widget, mixed selected)
 int clickDirectoryTree(object what, object widget, mixed selected)
 { 
  if(menuisup==0 && popupmenu) popupmenu=0;
-//rightpane->signal_disconnect(clickevent);
 
              if( selected->button == 3 && treeselection) {
 object data=leftpane->node_get_row_data(treeselection);
@@ -836,11 +827,10 @@ object data=leftpane->node_get_row_data(treeselection);
 array getDNfromSelection()
 {
   array dns=({});
-  array selection=rightpane->get_selected_icons();
-//  werror(sprintf("%O", selection));
+  array selection=rightpane->get_selected_objects();
   foreach(selection, int icon)
   {
-    object d=rightpane->get_icon_data(icon);
+    object d=rightpane->get_object(icon);
     dns+=({d});
   }
   return dns;
@@ -861,14 +851,3 @@ int unselectIcon(int what, object widget, mixed selected)
   popStatus();
 }
 
-void addIcon(mapping item, object what)
-{
-  if(item->state=="locked")
-    what->insert(0, "icons/" + item->type + "-locked-sm.png", item->name);
-  else
-    what->insert(0, "icons/" + item->type + "-sm.png", item->name);
-  object d=.Objects[item->type](ldap, this_object(), item->dn, item->name, item->state, 
-	(item->uid||""));
-
-  what->set_icon_data(0, d);
-}

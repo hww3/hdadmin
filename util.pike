@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.1 2002-04-11 20:22:06 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.2 2002-04-29 23:34:16 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -101,7 +101,9 @@ int getGidfromName(string n, object ldap)
   ldap->set_basedn(ldap->BASEDN);
   ldap->set_scope(2);
   object r=ldap->search(filter);
+#ifdef DEBUG
   werror("getGidfromName: " + r->num_entries() + " rows\n");
+#endif
   if(r->num_entries()==0)
    return -1;
   else return (int)(r->fetch()["gidnumber"][0]);
@@ -148,9 +150,12 @@ string|int getUidfromDN(string dn, object ldap)
   else return (string)(r->fetch()["cn"][0]);
 }
 
-int isaNumber(string n)
+int isaNumber(string|array n)
 {
-  array ns=n/"";
+  array ns;
+  if(arrayp(n))
+    ns=n[0]/"";
+  else ns=n/"";
   foreach(ns, string c)
     if(!Regexp("[0-9]")->match(c))
       return 0;
@@ -445,3 +450,30 @@ array climbtree(object t, object r, array a, mapping t2)
   return a;
 }
 
+string getTypeofObject(mixed oc)
+{
+  string type="generic";
+
+  if(search(oc, "posixAccount")>=0) type="user";
+  else if(search(oc, "shadowaccount")>=0) type="user";
+  else if(search(oc, "posixGroup")>=0) type="group"; 
+  else if(search(oc, "ipNetwork")>=0) type="network";
+  else if(search(oc, "nisMailAlias")>=0) type="mailalias";
+  else if(search(oc, "ipHost")>=0) type="host";
+
+ return type;
+
+}
+
+string getStateofObject(string type, mixed entry)
+{
+  string state="";
+
+  if(type=="user" && entry["userpassword"] &&
+    entry["userpassword"][0]=="{crypt}*LK*")
+  {
+    state="locked";
+  }
+
+  return state;
+}
