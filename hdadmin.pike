@@ -24,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.23 2003-06-17 19:17:46 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.24 2003-06-20 20:25:31 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.2.5"
 
@@ -128,8 +128,7 @@ void toggleConnect()
 
 void toggleSearch()
 {
-  if(isConnected==1) openDisconnect();
-  else openConnect();
+  if(isConnected==1) openSearch();
 }
 
 void doLDIFSave(object what, object widget, mixed ... args)
@@ -311,6 +310,58 @@ void openConnect()
   while(doConnect(h, u, p, basedn->entry()->get_text()));
   if(connectWindow) 
     connectWindow->close();
+  
+  return;
+
+}
+
+void openSearch()
+{
+  object searchWindow;
+
+  searchWindow=Gnome.Dialog("Search the Directory",
+	Gnome.StockButtonOk ,
+	Gnome.StockButtonCancel);
+  searchWindow->set_usize(480,320);
+  object pane=searchWindow->vbox();
+  object vbox=GTK.Vbox(0,0)->show();
+  object hb=GTK.Hbox(0,0)->show(); 
+  
+  hb->pack_start_defaults(GTK.Pixmap(
+     getPixmapfromFile("icons/directory_server.png"),
+     getBitmapfromFile("icons/directory_server_mask.png"))->show());
+
+  hb->pack_start(vbox, 0, 0, 1);
+
+  pane->pack_start_defaults(hb);
+
+  object line1=GTK.Hbox(0,0)->show();
+  object line2=GTK.Hbox(0,0)->show();
+  object type=GTK.Combo()->show();
+  object directorypath=GTKSupport.pDirectoryTreePicker(ldap)->show();
+  directorypath->set_path(ldap->BASEDN);
+
+  line1->pack_start(GTK.Label("Search for ")->show(), 0, 0, 3);
+  line1->pack_start(type, 0, 0, 3);
+
+  line2->pack_start(GTK.Label("Search in ")->show(), 0, 0, 3);
+  line2->pack_start(directorypath, 0,0,3);
+  
+  array l=({});
+
+  foreach(indices(Objects), string n)
+    if(Objects[n]()->writeable)
+      l+=({upper_case(n[0..0]) + n[1..] + "s"});
+
+  type->set_popdown_strings(l);
+
+  type->entry()->set_editable(0);
+
+  vbox->pack_start(line1, 0, 0, 1);
+  vbox->pack_start(line2, 0, 0, 1);
+  vbox->show();
+  searchWindow->set_default(0);
+  searchWindow->show();
   
   return;
 
