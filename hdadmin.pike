@@ -24,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.17 2002-10-17 21:20:01 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.18 2002-10-31 18:13:07 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.2.5"
 
@@ -169,6 +169,19 @@ void openSaveWindow()
   cancel->signal_connect("clicked", closeSaveWindow, window);
   ok->signal_connect("clicked", doLDIFSave, window);
 
+}
+
+object addProperty(string name, string value, object o)
+{
+  if(value && o->entry)
+    o->entry()->set_text(value);
+  else if(value && o->set_text)
+    o->set_text(value);
+  if(name && o->entry)
+    o->entry()->set_name(name);
+  else
+    o->set_name(name);
+  return o;
 }
 
 void openConnect()
@@ -344,62 +357,12 @@ void openFixCN()
 
 void openPreferences()
 {
-  object aboutWindow;
-  aboutWindow = Gnome.About("HyperActive Directory Administrator",
-				HDADMIN_VERSION, "(c) Bill Welliver 2002",
-				({"Bill Welliver", ""}),
-				"Manage your LDAP directory with style.",
-				"icons/spiral.png");
-  aboutWindow->show();
-  return;
- }
-
-void openHostProperties(object dn)
-{
-  ldap->set_scope(2);
-  ldap->set_basedn(dn->dn);
-  string filter="objectclass=*";
-  object res=ldap->search(filter);
-  mapping info=res->fetch();
-
-  // check for the proper objectclasses
-  array roc=({ "top", "device", "iphost" });
-  for(int i=0; i< sizeof(info["objectclass"]); i++)
-  {
-    info["objectclass"][i]=lower_case(info["objectclass"][i]);
-  }
-  foreach(roc, string oc1)
-  {
-    if(search(info["objectclass"], oc1)==-1)  // do we have this objectclass?
-    {
-#ifdef DEBUG
-      werror("adding objectclass " + oc1 + " for host " + dn->dn + "\n");
-#endif
-      ldap->modify(dn->dn, (["objectclass": ({0, oc1})]));    
-    }
-  }
 
   object propertiesWindow;
   propertiesWindow = Gnome.PropertyBox();
-  propertiesWindow->set_title("Properties of host " + info->cn[0]);
-
-  object generaltab=GTK.Vbox(0, 0);
-  generaltab->show();
-  addPagetoProperties(generaltab, "General", propertiesWindow);
-
-  object objectsource=GTK.Text();
-  objectsource->set_usize(250,250);
-  object sourcetab=GTK.Vbox(0, 0);
-  sourcetab->pack_start_defaults(objectsource->show());
-  sourcetab->show();
-  addPagetoProperties(sourcetab, "Object Definition", propertiesWindow);
-
-  objectsource->set_text(generateLDIF(info));
-
-  object vbox=propertiesWindow->vbox();
-  vbox->show();
+  propertiesWindow->set_title("Preferences");
   propertiesWindow->show();
-  return;
+
 }
 
 object generatePopupMenu(array defs)
@@ -417,6 +380,8 @@ array createPopupMenu(string type)
 
   if(type=="tree")
   {
+    defs+=({MenuDef( "New Organizational Unit...", openNewOU, 0 )});
+    defs+=({MenuDef( "Delete Organizational Unit...", openDeleteOU, 0 )});
    
   }
 
@@ -453,6 +418,147 @@ void openNew(string type)
 {
     object d=rightpane->make_object(type, ldap, this_object());
     d->openProperties();
+}
+
+void propertiesChanged(mapping what, object widget, mixed ... args)
+{
+  if(widget->entry)
+    what[widget->entry()->get_name()]=widget->get_text();
+  else
+    what[widget->get_name()]=widget->get_text();
+  what->propertiesWindow->changed();
+}
+
+void openDeleteOU()
+{
+  string loc="";
+  object data=leftpane->node_get_row_data(treeselection);
+  string tmp=replace(data->dn, ({"\\,"}), ({"``"}));
+  array comp=tmp/",";
+  array comp1=({});
+  foreach(comp, string c)
+    comp1+=({String.trim_whites((c/"=")[1])});
+  loc=replace(comp1*"/", ({"``"}), ({"\\,"}));
+
+    object c=Gnome.MessageBox("Delete " + loc + "?", 
+      Gnome.MessageBoxError,
+      Gnome.StockButtonOk, Gnome.StockButtonCancel);
+    
+    c->set_usize(275, 150);
+    c->show();
+    int returnvalue=c->run_and_close();
+    if(returnvalue==1)
+      return;
+    else
+       doDeleteOU(data->dn);
+
+    return;
+}
+
+void openNewOU()
+{
+  mapping whatchanged=([]);
+
+  object propertiesWindow;
+  propertiesWindow = Gnome.PropertyBox();
+  propertiesWindow->set_title("Create New Organizational Unit");
+  whatchanged->propertiesWindow=propertiesWindow;
+  object generaltab=GTK.Vbox(0, 0);
+
+  string loc="";
+
+  object data=leftpane->node_get_row_data(treeselection);
+  string tmp=replace(data->dn, ({"\\,"}), ({"``"}));
+  array comp=tmp/",";
+  array comp1=({});
+  foreach(comp, string c)
+    comp1+=({String.trim_whites((c/"=")[1])});
+  loc=replace(comp1*"/", ({"``"}), ({"\\,"}));
+  werror("loc: " + loc + "\n");
+  object par=GTK.Label(loc)->show();
+  object ou=addProperty("ou", "", GTK.Entry());
+  object description=addProperty("description", "", GTK.Entry());
+
+  generaltab->show();
+
+  ou->signal_connect("changed", propertiesChanged, whatchanged);
+  description->signal_connect("changed", propertiesChanged, whatchanged);
+
+  addItemtoPage(par, "Create in", generaltab);
+  addItemtoPage(ou, "Organizational Unit", generaltab);
+  addItemtoPage(description, "Description", generaltab);
+  addPagetoProperties(generaltab, "General", propertiesWindow);
+  propertiesWindow->signal_connect("apply", addNewOU, (["ou": ou, 
+    "description": description]));
+  propertiesWindow->show();
+
+}
+
+void doDeleteOU(string oudn)
+{
+    int res;
+#ifdef DEBUG
+    werror("deleting ou: " + oudn + "\n\n");
+#endif
+    res=ldap->delete(oudn);
+    if(!res)
+    {
+       openError("An LDAP error occurred:\n" + ldap->error_string());
+       return;
+    }
+    else
+    {
+     treedata=clearTree(leftpane, treedata);
+     setupTree(leftpane, treedata);
+     populateTree(leftpane, treedata, ldap);
+
+    }
+
+}
+
+void addNewOU(mixed whatchanged, object widget, mixed args)
+{
+  if(args==-1)
+  {
+    int res;
+#ifdef DEBUG
+    werror("addNewOU\n");
+#endif
+    if(whatchanged->ou->get_text()=="")
+    {
+      openError("You must provide a value for the Organizational Unit.");
+      return;
+    }
+    if(whatchanged->description->get_text()=="")
+    {
+      openError("You must provide a value for the Description.");
+      return;
+    }
+    // we're at the end and the input is valid.
+
+    object data=leftpane->node_get_row_data(treeselection);
+    string mydn="ou=" + 
+       (replace(whatchanged->ou->get_text(), ",", "\\,")) + ", " + 
+       data->dn;
+#ifdef DEBUG
+    werror("my new dn: " + mydn + "\n\n");
+#endif
+    res=ldap->add(mydn, (["objectclass": ({"top", "organizationalunit"}),
+"ou": ({whatchanged->ou->get_text()}), 
+"description": ({whatchanged->description->get_text()})]));
+    if(!res)
+    {
+       openError("An LDAP error occurred:\n" + ldap->error_string());
+       return;
+    }
+    else
+    {
+     treedata=clearTree(leftpane, treedata);
+     setupTree(leftpane, treedata);
+     populateTree(leftpane, treedata, ldap);
+
+    }
+  }
 }
 
 void refreshView()
