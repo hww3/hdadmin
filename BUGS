@@ -4,4 +4,17 @@ Current list of known issues:
  
 - list/icon view selector isn't set properly on startup.
 
+
+Bugs/issues fixed:
+
 - mailrecipient object class is missing from newly created user accounts. FIXED 20020513
+
+- autohome directory not saved when creating new user account. FIXED 20020603
+
+- shadowinactive not being saved. FIXED 20020530
+
+- cursor not automatically present in first password box when resetting password. FIXED 20020530
+
+- groups cannot be added immediately after applying a new user addition. FIXED 20020603
+
+- once you add a uid number, you must supply a full number (no blanks). FIXED 20020603

@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: user.pike,v 1.4 2002-05-14 01:52:21 hww3 Exp $";
+constant cvs_version="$Id: user.pike,v 1.5 2002-06-03 20:10:27 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -106,17 +106,17 @@ int checkUserChanges(string dn, mapping w)
       "host:/path/to/home");
     return 1;
   }
-  if(dn=="" && !w->uidnumber) // we dont have a uidnumber so lets find one.
+  if(dn=="" && (!w->uidnumber || w->uidnumber=="")) // we dont have a uidnumber so lets find one.
   {
     w->uidnumber=getNextUIDNumber();
   }
 
-  if(w->uidnumber && !isaNumber(w->uidnumber))
+  if(w->uidnumber && w->uidnumber!="" && !isaNumber(w->uidnumber))
   {
     openError("Numeric User ID must be a number.");
     return 1;
   }
-  if(w->uidnumber) // is the uid in use by someone else?
+  if(w->uidnumber && w->uidnumber!="") // is the uid in use by someone else?
   {
     array g=getUidfromUidnumber(w->uidnumber, ldap);
     if(sizeof(g)>0)
@@ -316,6 +316,10 @@ werror("adding entry: " + sprintf("%O", entry) + "\n");
 #endif
     }
 
+    if(whatchanged->dn)
+      dn=whatchanged->dn;
+    if(whatchanged->uid)
+      uid=whatchanged->uid;
   }
   else
   { 
@@ -362,7 +366,8 @@ werror("adding entry: " + sprintf("%O", entry) + "\n");
       newdn=(whatchanged->dn/",");
       newdn[0]="uid=" + whatchanged->uid;
       whatchanged->dn=newdn*",";
-      uid=whatchanged->uid;    
+      if(whatchanged->uid)    
+        uid=whatchanged->uid;    
     }
   }
  
@@ -419,7 +424,14 @@ werror(sprintf("CHANGES: %O\n", change));
   if(whatchanged->useautohome==0 || whatchanged->useautohome==1) 
    // we want to change use of autohome
   {
+#ifdef DEBUG
+      werror("working on autohome record...");
+#endif
+ 
     string autohomedirectorydn=getAutoHomeDN(uid, ldap);
+#ifdef DEBUG
+      werror("autohome dn:" + autohomedirectorydn + "\n");
+#endif
     if(whatchanged->useautohome==0 && autohomedirectorydn) 
     {
       // we have an entry and we need to delete it.
@@ -527,9 +539,14 @@ void applyProperties(mapping whatchanged, object widget, mixed args)
     else 
     {
 #ifdef DEBUG
-      werror("user added successfully.\n");
+      werror("user added/changed successfully.\n");
 #endif
-    dn=whatchanged->dn;
+      if(whatchanged->dn != dn)
+      {
+        dn=whatchanged->dn;
+        this->refreshView();
+      }
+      if(whatchanged->uid != uid) uid=whatchanged->uid;
 #ifdef DEBUG
       werror("dn: " + dn + "\n");
 #endif
@@ -644,20 +661,20 @@ void createHomeToggled3(object what, object widget, mixed ... args)
   what->changed();
 }
 
-int addUsertoGroup(string uid, string userdn, string groupdn)
+int addUsertoGroup(string groupdn)
 {
-  if(uid=="" || userdn=="" || groupdn=="")  return 0;
-  if(!uid || !userdn || !groupdn)  return 0;
+  if(uid=="" || dn=="" || groupdn=="")  return 0;
+  if(!uid || !dn || !groupdn)  return 0;
   int res=ldap->modify(groupdn, (["memberuid": ({ 0, uid}),
-			"uniquemember": ({ 0, userdn})
+			"uniquemember": ({ 0, dn})
     ]));
   return res;
 }
 
-int removeUserfromGroup(string uid, string userdn, string groupdn)
+int removeUserfromGroup(string groupdn)
 {
   int res=ldap->modify(groupdn, (["memberuid": ({ 1, uid}),
-			"uniquemember": ({ 1, userdn})
+			"uniquemember": ({ 1, dn})
     ]));
   return res;
 }
@@ -682,6 +699,9 @@ werror("loading user's data from LDAP\n");
   string filter="objectclass=*";
   object res=ldap->search(filter);
   string message=sprintf("%O", res->fetch());
+#ifdef DEBUG
+werror("User Data: " + message + "\n");
+#endif
   data=res->fetch();
 }
 
@@ -941,7 +961,7 @@ foreach(selection, int row)
 #ifdef DEBUG
     werror("adding group membership: " + d->dn + " for user " + info["uid"][0] + "\n");
 #endif
-    int res=addUsertoGroup(info["uid"][0], info["dn"][0], d->dn);
+    int res=addUsertoGroup(d->dn);
     if(res) openError("An error occurred while adding a group membership:\n\n" + ldap->error_string(res));
     else
     {
@@ -970,7 +990,7 @@ foreach(selection, int row)
 #ifdef DEBUG
     werror("removing group membership: " + d->dn + " for user " + info["uid"][0] + "\n");
 #endif
-    int res=removeUserfromGroup(info["uid"][0], info["dn"][0], d->dn);
+    int res=removeUserfromGroup(d->dn);
     if(res) openError("An error occurred while removing a group membership:\n\n" + ldap->error_string(res));
     else
     {
@@ -1007,6 +1027,7 @@ foreach(selection, int row)
   autohomedirectory->signal_connect("changed", propertiesChanged, whatchanged);
   if(newuser)
     createonhost->signal_connect("changed", propertiesChanged, whatchanged);
+  shadowinactive->signal_connect("changed", propertiesChanged, whatchanged);
   shadowmax->signal_connect("changed", propertiesChanged, whatchanged);
   shadowmin->signal_connect("changed", propertiesChanged, whatchanged);
   shadowwarning->signal_connect("changed", propertiesChanged, whatchanged);
@@ -1268,7 +1289,7 @@ void openAddtoGroup()
 #ifdef DEBUG
         werror("adding group for " + uid + "\n");
 #endif
-        int res=addUsertoGroup(uid, dn, selectedgroup->dn);
+        int res=addUsertoGroup(selectedgroup->dn);
         if(res!=0) 
         {
           openError("An error occurred while trying to "
@@ -1358,6 +1379,7 @@ void openPassword(object r)
   password2->set_visibility(0);
   addItemtoPage(password, "Password", vbox);
   addItemtoPage(password2, "Retype Password", vbox);
+  password->grab_focus();
   passwordWindow->editable_enters(password2);
   vbox->show();
   passwordWindow->show();
