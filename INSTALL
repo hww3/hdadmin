@@ -6,7 +6,13 @@ Pike 7.3.13+ compiled with Gnome/GTK patches from patches directory
 
 Usage:
 
-pike hdadmin.pike
+copy hdadmin-0.2.0/hdadmin_defaults.conf to /etc/hdadmin.conf 
+and edit as needed.
+
+$ cd hdadmin-0.2.0
+$ pike -M. hdadmin.pike
+
+If you don't run pike with the -M. flag, you'll get compilation errors.
 
 Because HyperActive Directory Administrator is a graphically oriented
 program, you should get a feel for its use without too much difficulty. As
