@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.2 2002-01-10 03:14:31 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.3 2002-01-14 00:48:24 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -549,6 +549,26 @@ int removeUserfromGroup(string uid, string userdn, string groupdn)
   return res;
 }
 
+string generateLDIF(mapping info)
+{
+  string ldif="";
+  if(!info->dn) return "ERROR: Incomplete object definition";
+  mapping tmpinfo=copy_value(info);
+  foreach(tmpinfo->dn, string value)
+   ldif+=("dn: " + value + "\n");
+  foreach(tmpinfo->objectclass, string value)
+   ldif+=("objectclass: " + value + "\n");
+  m_delete(tmpinfo, "dn");
+  m_delete(tmpinfo, "objectclass");
+
+  foreach(sort(indices(tmpinfo)), string index)
+  {
+    foreach(tmpinfo[index], string value)
+    ldif+=(index + ": " + value + "\n");
+  }
+  return ldif;
+}
+
 void openUserProperties(object dn)
 {
   ldap->set_scope(2);
@@ -673,11 +693,7 @@ void openUserProperties(object dn)
 
   groupmemberships->sort();
 
-  string os="";
-  foreach(indices(info), string att)
-     foreach(info[att], string a)
-        os+=att + ":" + " " + a + "\n";
-  objectsource->set_text(os);
+  objectsource->set_text(generateLDIF(info));
   addItemtoPage(homedirectory, "Home Directory", environmenttab);
   addItemtoPage(givenname, "First Name", generaltab);
   addItemtoPage(sn, "Last Name", generaltab);
@@ -816,9 +832,42 @@ void openHostProperties(object dn)
   ldap->set_basedn(dn->dn);
   string filter="objectclass=*";
   object res=ldap->search(filter);
-  string message=sprintf("%O", res->fetch());
+  mapping info=res->fetch();
+
+  // check for the proper objectclasses
+  array roc=({ "top", "device", "iphost" });
+  for(int i=0; i< sizeof(info["objectclass"]); i++)
+  {
+    info["objectclass"][i]=lower_case(info["objectclass"][i]);
+  }
+  foreach(roc, string oc1)
+  {
+    if(search(info["objectclass"], oc1)==-1)  // do we have this objectclass?
+    {
+      werror("adding objectclass " + oc1 + " for host " + dn->dn + "\n");
+      ldap->modify(dn->dn, (["objectclass": ({0, oc1})]));    
+    }
+  }
+
   object propertiesWindow;
   propertiesWindow = Gnome.PropertyBox();
+  propertiesWindow->set_title("Properties of host " + info->cn[0]);
+
+  object generaltab=GTK.Vbox(0, 0);
+  generaltab->show();
+  addPagetoProperties(generaltab, "General", propertiesWindow);
+
+  object objectsource=GTK.Text();
+  objectsource->set_usize(250,250);
+  object sourcetab=GTK.Vbox(0, 0);
+  sourcetab->pack_start_defaults(objectsource->show());
+  sourcetab->show();
+  addPagetoProperties(sourcetab, "Object Definition", propertiesWindow);
+
+  objectsource->set_text(generateLDIF(info));
+
+  object vbox=propertiesWindow->vbox();
+  vbox->show();
 //      "So you want to see information about the Host "+ dn->dn + "?\n\n"
 //      + message,  
 //      GTK.GNOME_MESSAGE_BOX_INFO, Gnome.StockButtonOk);
@@ -828,18 +877,49 @@ void openHostProperties(object dn)
 
 void openGenericProperties(object dn)
 {
-  ldap->set_scope(2); 
+  ldap->set_scope(2);
   ldap->set_basedn(dn->dn);
   string filter="objectclass=*";
   object res=ldap->search(filter);
-  string message=sprintf("%O", res->fetch());
+  mapping info=res->fetch();
+
+  // check for the proper objectclasses
+  array roc=({});
+  for(int i=0; i< sizeof(info["objectclass"]); i++)
+  {
+    info["objectclass"][i]=lower_case(info["objectclass"][i]);
+  }
+  foreach(roc, string oc1)
+  {
+    if(search(info["objectclass"], oc1)==-1)  // do we have this objectclass?
+    {
+      werror("adding objectclass " + oc1 + " for host " + dn->dn + "\n");
+      ldap->modify(dn->dn, (["objectclass": ({0, oc1})]));    
+    }
+  }
+
   object propertiesWindow;
   propertiesWindow = Gnome.PropertyBox();
+  propertiesWindow->set_title("Properties of object " + info->cn[0]);
+
+  object generaltab=GTK.Vbox(0, 0);
+  generaltab->show();
+  addPagetoProperties(generaltab, "General", propertiesWindow);
+
+  object objectsource=GTK.Text();
+  objectsource->set_usize(250,250);
+  object sourcetab=GTK.Vbox(0, 0);
+  sourcetab->pack_start_defaults(objectsource->show());
+  sourcetab->show();
+  addPagetoProperties(sourcetab, "Object Definition", propertiesWindow);
+
+  objectsource->set_text(generateLDIF(info));
+
   object vbox=propertiesWindow->vbox();
-  addItemtoPage(GTK.Label(message), "Properties", vbox);
+  vbox->show();
 //      "So you want to see information about the Host "+ dn->dn + "?\n\n"
 //      + message,  
-  vbox->show();
+//      GTK.GNOME_MESSAGE_BOX_INFO, Gnome.StockButtonOk);
   propertiesWindow->show();
   return;
 }
@@ -1778,7 +1858,7 @@ void showIcons(mixed what, object widget, mixed selected)
     string nom="";
     if(m["sn"] && m["givenname"])
       nom=(m["sn"][0] + m["givenname"][0]);
-    werror("name: " + nom + "\n");
+//  werror("name: " + nom + "\n");
     n+=({nom});
     ent+=({res->fetch()});
     res->next();
