@@ -24,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.11 2002-06-03 20:44:38 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.12 2002-06-13 21:56:12 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.20"
 
@@ -44,7 +44,7 @@ string ROOTDN;
 int isConnected=0;
 object treeselection;
 mapping treedata=([]);
-int main(int argc, string* argv) {
+int main(int argc, array argv) {
 
  if(file_stat( getenv("HOME")+"/.pgtkrc" ))
     GTK.parse_rc( cpp(Stdio.read_bytes(getenv("HOME")+"/.pgtkrc")) );
