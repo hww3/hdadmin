@@ -1,3 +1,13 @@
+Changes since version 0.3.0
+
+Added support for adding hosts
+
+Changed the way modules work, so that new object types can be added 
+without modifying the core application.
+
+More useful information is displayed in the second column of the list 
+view.
+
 Changes since version 0.2.5
 
 Added support for adding and modifying groups.
