@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.6 2002-07-22 20:09:44 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.7 2002-07-23 20:43:19 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -230,7 +230,6 @@ array getUidfromUidnumber(string n, object ldap)
   ldap->set_basedn(ldap->BASEDN);
   ldap->set_scope(2);
   object r=ldap->search(filter);
-  werror("getGidfromName: " + r->num_entries() + " rows\n");
   if(r->num_entries()==0)
    return ({});
   array g=({});
@@ -248,7 +247,6 @@ string|int getNamefromGid(string g, object ldap)
   ldap->set_basedn(ldap->BASEDN);
   ldap->set_scope(2);
   object r=ldap->search(filter);
-  werror("getGidfromName: " + r->num_entries() + " rows\n");
   if(r->num_entries()==0)
    return -1;
   else return (string)(r->fetch()["cn"][0]);
