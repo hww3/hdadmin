@@ -1,5 +1,7 @@
 Changes since version 0.2.0
 
+Added image cache to speed up drawing of object views.
+
 Added support for referrals. This requires new pike 7.3.49+.
 
 Updated to support new LDAP API. This requires new pike 7.3.49+.
@@ -9,6 +11,7 @@ Added #! line to top of hdadmin script (probably not that useful bc of -M
 
 Fixed the following bugs:
 
+- added very small user images for list view.
 - error dialogs are more standard.
 - autohome directory not saved when creating new user account.
 - shadowinactive not being saved.
