@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.16 2003-06-27 19:56:20 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.17 2003-11-10 16:41:20 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -157,9 +157,14 @@ mapping loadPreferences()
 {
   mapping prefs=([]);
 
+  string filename="./hdadmin_defaults.conf";
+
+  string d=getenv("HDADMIN_HOME");
+  if(d) filename=combine_path(d, filename);
+
   string f="";
-  if(file_stat("./hdadmin_defaults.conf"))
-    f+=Stdio.read_file("./hdadmin_defaults.conf");
+  if(file_stat(filename))
+    f+=Stdio.read_file(filename);
   if(file_stat("/etc/hdadmin.conf"))
     f+=Stdio.read_file("/etc/hdadmin.conf");
   if(file_stat(getenv("HOME") + "/.hdadmin.conf"))
@@ -600,6 +605,9 @@ mapping pixmapcache=([]);
 
 object getPixmapfromFile(string filename)
 {
+  string d=getenv("HDADMIN_HOME");
+  if(d) filename=combine_path(d, filename);
+
   if(pixmapcache[filename] && objectp(pixmapcache[filename]))
     return GDK.Pixmap(pixmapcache[filename]);
   else
@@ -613,6 +621,9 @@ object getPixmapfromFile(string filename)
 
 object getImagefromFile(string filename)
 {
+  string d=getenv("HDADMIN_HOME");
+  if(d) filename=combine_path(d, filename);
+
   if(pixmapcache[filename] && objectp(pixmapcache[filename]))
     return GDK.Image(0, pixmapcache[filename]);
   else
@@ -626,6 +637,9 @@ object getImagefromFile(string filename)
 
 object getBitmapfromFile(string filename)
 {
+  string d=getenv("HDADMIN_HOME");
+  if(d) filename=combine_path(d, filename);
+
   if(pixmapcache[filename] && objectp(pixmapcache[filename]))
     return GDK.Bitmap(pixmapcache[filename]);
   else
