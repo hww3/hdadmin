@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.6 2002-02-14 23:05:14 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.7 2002-03-07 04:09:43 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -206,6 +206,7 @@ void openConnect()
     if(bdn)
         basedn->gtk_entry()->set_text(bdn);
   }
+
   addItemtoPage(host, "Server", vbox);
   addItemtoPage(basedn, "Base DN", vbox);
   addItemtoPage(username, "Username", vbox);
@@ -324,10 +325,15 @@ void openProperties()
 object addItemtoPage(object item, string desc, object page)
 {
   object hbox=GTK.Hbox(0,0);
+//werror("ADDITEMTOPAGE!\n");
+
   object label=GTK.Label(desc+":");
   label->set_justify(GTK.JUSTIFY_RIGHT);
   hbox->pack_start(label->show(), 0, 0 , 5);
   hbox->pack_end(item->show(), 0, 0, 5);
+werror(sprintf("BLAH: %O, %O\n", page, mkmapping(indices(page), 
+values(page))));
+
   page->pack_start(hbox->show(), 0, 0, 4);
   return hbox;
 }
@@ -817,7 +823,11 @@ void openUserProperties(object dn)
   tmp=getTextfromEntry("loginshell", info);
   object loginshell=addProperty("loginshell", tmp, Gnome.Entry());
   loginshell->set_usize(120,0);
-  foreach(Stdio.read_file("/etc/shells")/"\n", string s)
+  array shells=({});
+  if(file_stat("/etc/shells"))
+    shells=Stdio.read_file("/etc/shells")/"\n";
+  else shells=({"/bin/sh", "/bin/ksh", "/bin/csh"});
+  foreach(shells, string s)
     loginshell->prepend_history(0, s);
   tmp=getTextfromEntry("mail", info);
   object mail=addProperty("mail", tmp, GTK.Entry());
