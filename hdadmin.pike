@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.5 2002-02-04 22:06:53 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.6 2002-02-14 23:05:14 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -214,6 +214,10 @@ void openConnect()
   vbox->show();
   connectWindow->set_default(0);
   connectWindow->show();
+  password->grab_focus();
+  password->set_position(0);
+//  password->activate();
+
   string h,u,p;
   int res,keeptrying;
   do
@@ -334,6 +338,59 @@ object addPagetoProperties(object page, string desc, object properties)
   return properties;
 }
 
+int getGidfromName(string n)
+{
+  string filter="(&(objectclass=posixgroup)(cn=" + n + "))";
+  ldap->set_basedn(BASEDN);
+  ldap->set_scope(2);
+  object r=ldap->search(filter);
+  werror("getGidfromName: " + r->num_entries() + " rows\n");
+  if(r->num_entries()==0)
+   return -1;
+  else return (int)(r->fetch()["gidnumber"][0]);
+}
+
+array getUidfromUidnumber(string n)
+{
+  string filter="(&(objectclass=posixaccount)(uidnumber=" + n + "))";
+  ldap->set_basedn(BASEDN);
+  ldap->set_scope(2);
+  object r=ldap->search(filter);
+  werror("getGidfromName: " + r->num_entries() + " rows\n");
+  if(r->num_entries()==0)
+   return ({});
+  array g=({});
+  for(int i=0; i<r->num_entries(); i++)
+  {
+    g+=({r->fetch()["cn"][0]});
+    r->next();
+  }
+  return g;
+}
+
+string|int getNamefromGid(string g)
+{
+  string filter="(&(objectclass=posixgroup)(gidnumber=" + g + "))";
+  ldap->set_basedn(BASEDN);
+  ldap->set_scope(2);
+  object r=ldap->search(filter);
+  werror("getGidfromName: " + r->num_entries() + " rows\n");
+  if(r->num_entries()==0)
+   return -1;
+  else return (string)(r->fetch()["cn"][0]);
+}
+
+string|int getUidfromDN(string dn)
+{
+  ldap->set_basedn(dn);
+  ldap->set_scope(2);
+  object r=ldap->search("objectclass=*");
+  werror("getUidfromDN: " + r->num_entries() + " rows\n");
+  if(r->num_entries()==0)
+   return -1;
+  else return (string)(r->fetch()["cn"][0]);
+}
+
 int isaNumber(string n)
 {
   array ns=n/"";
@@ -370,9 +427,35 @@ int checkUserChanges(string dn, mapping w)
     openError("Numeric User ID must be a number.");
     return 1;
   }
-  if(w->gidnumber && !isaNumber(w->gidnumber))
+  if(w->uidnumber) // is the uid in use by someone else?
   {
-    openError("Numeric Group ID must be a number.");
+    array g=getUidfromUidnumber(w->uidnumber);
+    if(sizeof(g)>0)
+    {
+      string myuname=lower_case(getUidfromDN(dn));
+      foreach(g, string uid)
+      {
+        if(lower_case(uid)!=myuname)
+        {
+          object c=Gnome.MessageBox("Numeric User ID " + w->uidnumber + 
+            " is already in use by " + uid + "."
+            "\nDo you really want to have duplicate User IDs?", 
+            GTK.GNOME_STOCK_BUTTON_CANCEL, GTK.GNOME_STOCK_BUTTON_OK);    
+    
+          c->set_usize(375, 150);
+          c->show();
+          int returnvalue=c->run_and_close();
+          if(returnvalue==1)
+            return 1; // no, we don't want duplicate ids
+          else return 0; // we're ok with the duplicate ids
+          
+        }
+      }
+    }
+  }
+  if(w->gidnumber && getGidfromName(w->gidnumber)==-1)
+  {
+    openError("Primary Group must already exist.");
     return 1;
   }
   if(w->shadowmin && !isaNumber(w->shadowmin))
@@ -478,6 +561,10 @@ int doUserChanges(string dn, mapping whatchanged)
     {
       if(wc[attr]=="")
         change[attr]=({changetype});
+      if(attr=="gidnumber")
+	{
+	  change[attr]=({changetype, (string)getGidfromName(wc[attr])});
+	}
       else change[attr]=({changetype, wc[attr]});
     }
    werror(sprintf("change: %O\n", change));
@@ -721,7 +808,10 @@ void openUserProperties(object dn)
   tmp=getTextfromEntry("uidnumber", info);
   object uidnumber=addProperty("uidnumber", tmp, GTK.Entry());
   tmp=getTextfromEntry("gidnumber", info);
-  object gidnumber=addProperty("gidnumber", tmp, GTK.Entry());
+  tmp=getNamefromGid(tmp);
+  object gidnumber=addProperty("gidnumber", tmp, Gnome.Entry());
+  foreach(getGroupsforMember(), array grp)
+    gidnumber->prepend_history(0, grp[0]);
   tmp=getTextfromEntry("description", info);
   object description=addProperty("description", tmp, GTK.Entry());
   tmp=getTextfromEntry("loginshell", info);
@@ -742,14 +832,34 @@ void openUserProperties(object dn)
   tmp=getTextfromEntry("shadowwarning", info);
   object shadowwarning=addProperty("shadowwarning", tmp, GTK.Entry());
   tmp=getTextfromEntry("shadowexpire", info);
-  object shadowexpire=addProperty("shadowexpire", tmp, GTK.Entry());
+  object shadexp=Gnome.DateEdit(time(), 0, 1);
+  shadexp->set_usize(200,200);
+  object shadowexpire=addProperty("shadowexpire", tmp, shadexp);
   tmp=getTextfromEntry("shadowinactive", info);
   object shadowinactive=addProperty("shadowinactive", tmp, GTK.Entry());
   tmp=getTextfromEntry("telephonenumber", info);
+
+
+//   tmp=getTextfromEntry("shadowmax", info);
+//   object shadowmax=addProperty("shadowmax", tmp, GTK.SpinButton(GTK.Adjustment(0.0, 0.0, 9999.0, 1.0), 1.0, 0)->set_usize(160,20));
+//   tmp=getTextfromEntry("shadowmin", info);
+//   object shadowmin=addProperty("shadowmin", tmp, GTK.SpinButton(GTK.Adjustment(5.0, 0.0, 9999.0, 1.0), 1.0, 0)->set_usize(150,20));
+//   tmp=getTextfromEntry("shadowwarning", info);
+//   object shadowwarning=addProperty("shadowwarning", tmp, GTK.SpinButton(GTK.Adjustment(0.0, 0.0, 90.0, 1.0), 1.0, 0)->set_usize(150,20));
+//   tmp=getTextfromEntry("shadowexpire", info);
+//   object shadexp=Gnome.DateEdit(time(), 0, 1);
+//   shadexp->set_usize(200,200);
+//   object shadowexpire=addProperty("shadowexpire", tmp, shadexp);
+//   tmp=getTextfromEntry("shadowinactive", info);
+//   object shadowinactive=addProperty("shadowinactive", tmp, GTK.SpinButton(GTK.Adjustment(0.0, 0.0, 9999.0, 1.0), 1.0, 0)->set_usize(60,20));
+//   tmp=getTextfromEntry("telephonenumber", info);
+
+
+
   object telephonenumber=addProperty("telephonenumber", tmp, GTK.Entry());
   tmp=getTextfromEntry("mailforwardingaddress", info);
   object mailforwardingaddress=addProperty("mailforwardingaddress", tmp, GTK.Entry());
-  object useautohome=GTK.CheckButton("Use Automount for Home?");
+  object useautohome=GTK.CheckButton("Use Automount for Home");
   object objectsource=GTK.Text();
   array ag=getGroupsforMember();
   object allgroups=newGroupList(ag);
@@ -795,8 +905,8 @@ void openUserProperties(object dn)
   addItemtoPage(sn, "Last Name", generaltab);
   addItemtoPage(uid, "Username", accounttab);
   addItemtoPage(description, "Description", generaltab);
-  addItemtoPage(uidnumber, "Numeric UserID", accounttab);
-  addItemtoPage(gidnumber, "Numeric GroupID", accounttab);
+  addItemtoPage(uidnumber, "Numeric User ID", accounttab);
+  addItemtoPage(gidnumber, "Primary Group", accounttab);
   addItemtoPage(mail, "Mail Address", mailtab);
   addItemtoPage(mailforwardingaddress, "Deliver Mail To", mailtab);
   addItemtoPage(loginshell, "Login Shell", accounttab);
@@ -881,7 +991,7 @@ foreach(selection, int row)
   homedirectory->signal_connect("changed", propertiesChanged, whatchanged);
   uid->signal_connect("changed", propertiesChanged, whatchanged);
   uidnumber->signal_connect("changed", propertiesChanged, whatchanged);
-  gidnumber->signal_connect("changed", propertiesChanged, whatchanged);
+  gidnumber->gtk_entry()->signal_connect("changed", propertiesChanged, whatchanged);
   mail->signal_connect("changed", propertiesChanged, whatchanged);
   mailforwardingaddress->signal_connect("changed", propertiesChanged, whatchanged);
   loginshell->entry()->signal_connect("changed", propertiesChanged, whatchanged);
@@ -1083,7 +1193,7 @@ array getGroupsforMember(string|void uid)
     desc=r->fetch()["description"][0];
 //    werror(sprintf("%O\n", r->fetch()));
     array gt=({r->fetch()["cn"][0], desc,
-          r->fetch()["dn"][0]});
+          r->fetch()["dn"][0], r->fetch()["gidnumber"][0]});
     g+=({gt}); 
     r->next();
   }
