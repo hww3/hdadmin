@@ -24,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.20 2003-06-13 21:37:26 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.21 2003-06-16 14:34:43 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.2.5"
 
@@ -36,6 +36,8 @@ import GTK.MenuFactory;
 object ldap;
 object win,status,leftpane,rightpane;
 object actions;
+object connectButton;
+mixed connectButtonsignal;
 
 mapping objectclass_map=([]);
 mapping preferences=([]);
@@ -88,6 +90,9 @@ void openDisconnect()
     treedata=clearTree(leftpane, treedata);
     setupTree(leftpane, treedata);
     ldap->unbind();
+    connectButton->signal_block(connectButtonsignal);
+    connectButton->set_active(0);
+    connectButton->signal_unblock(connectButtonsignal);
     isConnected=0;
   }
 }
@@ -269,7 +274,13 @@ void openConnect()
   if(connectWindow) 
     connectWindow->close();
   
-  
+  connectButton->signal_block(connectButtonsignal);
+
+  if(isConnected) connectButton->set_active(1);  
+  else connectButton->set_active(0);  
+
+  connectButton->signal_unblock(connectButtonsignal);
+
   return;
 
 }
@@ -617,18 +628,23 @@ void setupToolbar()
 actionicon=GTK.Pixmap(getPixmapfromFile("icons/actions.png"), 
 getBitmapfromFile("icons/actions_mask.png"))->show();
 
-  object toolbar=GTK.Toolbar(GTK.ORIENTATION_HORIZONTAL, GTK.TOOLBAR_ICONS);
-  toolbar->append_item("Connect", "Connect to a directory server", "", conicon,
+  connectButton=GTK.ToggleButton()->add(conicon)->show();
+  connectButtonsignal=connectButton->signal_connect("clicked", 
     toggleConnect, 0);
+  connectButton->set_mode(0);
+
+  object toolbar=GTK.Toolbar(GTK.ORIENTATION_HORIZONTAL, GTK.TOOLBAR_ICONS);
+  toolbar->append_widget(connectButton, "Connect to a directory server", 
+     "Private");
   toolbar->append_space();
   toolbar->append_item("Actions", "Commonly used actions", "", actionicon,
     openActions, 0);
 
   toolbar->append_item("Search", "Search the directory", "", 
     searchicon,
-    toggleConnect, 0);
+    openAbout, 0);
 
-  toolbar->set_style(GTK.TOOLBAR_BOTH);
+//  toolbar->set_style(GTK.TOOLBAR_BOTH);
   toolbar->show();
   win->set_toolbar(toolbar);
 }
