@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: group.pike,v 1.1 2002-09-13 22:15:25 hww3 Exp $";
+constant cvs_version="$Id: group.pike,v 1.2 2002-10-31 18:16:33 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -30,31 +30,51 @@ import GTK.MenuFactory;
 
 object ldap;
 
+multiset supported_objectclasses(){return (<"posixgroup", "group">);}
+
 string type="group";
+int writeable=1;
 
 string dn;
-string cn;
+string name="";
+string description="";
 string state;
 
 object popup;
 object popupmap;
 
-mapping data, info;
+mapping attributes, info;
 
 object this;
 
 int menuisup=0;
 int newgroup=0;  
 
-void create(object l, object th, string n, string c, string t)
-{
-    state=t;
-    dn=n;
-    this=th;
-    cn=c;
+
+void create(object|void l, string|void mydn, mapping|void att, object|void th)
+{  if(!l) return;
+
+  state="";
+  dn=mydn;
+  if(att && att->cn) 
+    name=att->cn[0];
+  if(att && att->description)
+    description=att->description[0];
+  this=th;
   ldap=l;
+  if(att)
+    attributes=att;
   generatePopupMenu(createPopupMenu());
   return;
+}
+
+object get_icon(string size)
+{
+  if(size=="small") size="-sm";
+  if(size=="verysmall") size="-vsm";
+  else size="";
+  if(state=="locked") size="-locked" + size;
+  return getPixmapfromFile("icons/user" + size + ".png");
 }
 
 string getNextGIDNumber()
@@ -106,7 +126,7 @@ int checkGroupChanges(string dn, mapping w)
     array g=getGidfromGidnumber(w->gidnumber, ldap);
     if(sizeof(g)>0)
     {
-      string myuname=lower_case(cn);
+      string myuname=lower_case(name);
       foreach(g, string gid)
       {
         if(lower_case(gid)!=myuname)
@@ -194,7 +214,7 @@ werror("adding entry: " + sprintf("%O", entry) + "\n");
     if(whatchanged->dn)
       dn=whatchanged->dn;
     if(whatchanged->cn)
-      cn=whatchanged->cn;
+      name=whatchanged->cn;
   }
   else
   { 
@@ -204,8 +224,8 @@ werror("adding entry: " + sprintf("%O", entry) + "\n");
     ldap->set_basedn(whatchanged->dn);
     object rx=ldap->search("objectclass=*");
     if(rx->num_entries()==0) return 32; // no such group
-    cn=fix_entry(rx->fetch())["cn"][0];
-    werror("GNAME: " + cn + "\n");
+    name=fix_entry(rx->fetch())["cn"][0];
+    werror("GNAME: " + name + "\n");
     if(whatchanged->cn) // we need to change the groupname.
     { 
       // first, check to see that the groupname isn't already taken.
@@ -234,7 +254,7 @@ werror("adding entry: " + sprintf("%O", entry) + "\n");
       newdn[0]="cn=" + whatchanged->cn;
       whatchanged->dn=newdn*",";
       if(whatchanged->cn)    
-        cn=whatchanged->cn;    
+        name=whatchanged->cn;    
     }
   }
  
@@ -303,17 +323,14 @@ void applyProperties(mapping whatchanged, object widget, mixed args)
         dn=whatchanged->dn;
         this->refreshView();
       }
-      if(whatchanged->cn != cn) cn=whatchanged->cn;
+      if(whatchanged->cn != name) name=whatchanged->cn;
 #ifdef DEBUG
       werror("dn: " + dn + "\n");
 #endif
   
-    data=([]);
+    attributes=([]);
     loadData(); // load the group's data.
-#ifdef DEBUG
-      werror("data: " + sprintf("%O\n", data) + "\n");
-#endif
-    info=data;
+    info=attributes;
       newgroup=0;
     }
   }
@@ -383,14 +400,14 @@ void loadData()
 {
   if(dn=="") // we have a new object.
   {
-    data=loadDefaults();
+    attributes=loadDefaults();
     return;
   }
 #ifdef DEBUG
 werror("checking to see if we need to reload group data\n");
 #endif
 
-  if(data && sizeof(data)>0) return;
+  if(attributes && sizeof(attributes)>0) return;
 #ifdef DEBUG
 werror("loading group's data from LDAP\n");
 #endif
@@ -398,18 +415,15 @@ werror("loading group's data from LDAP\n");
   ldap->set_basedn(dn);
   string filter="objectclass=*";
   object res=ldap->search(filter);
-  data=fix_entry(res->fetch());
+  attributes=fix_entry(res->fetch());
 }
 
 mapping loadDefaults()
 {
   string defaults=Stdio.read_file("defaults/" + type + ".dat");
   if(!defaults) throw("Unable to read defaults for object type " + type);
-  data=decode_value(defaults);
-#ifdef DEBUG
-  werror("defaults: " + sprintf("%O", data) + "\n");
-#endif
-  return data;
+  attributes=decode_value(defaults);
+  return attributes;
 }
 
 
@@ -426,7 +440,7 @@ void openProperties()
 
   loadData(); // load the group's data.
 
-  info=data;
+  info=attributes;
   werror("GROUP DATA: " + sprintf("%O", info) + "\n\n");
   if(dn=="") 
   {
@@ -756,7 +770,7 @@ void openDisable()
   if(res) 
   {
     openError("An error occurred while trying to "
-      "disable a group:\n\n Group: " + cn + "\n\n" +
+      "disable a group:\n\n Group: " + name + "\n\n" +
       ldap->error_string());
     return;        
   }
@@ -769,7 +783,7 @@ void openDelete()
   int res=doDelete();
   if(res)
     openError("An error occurred while trying to "
-      "delete an group:\n\n Group: " + cn + "\n\n" +
+      "delete an group:\n\n Group: " + name + "\n\n" +
       ldap->error_string());
   else   this->refreshView();
   return;        
@@ -778,7 +792,7 @@ void openDelete()
 void openAddtoGroup()
 {
   string groupdn;
-  object addWindow=Gnome.Dialog("Add a user to group " + cn + "...",
+  object addWindow=Gnome.Dialog("Add a user to group " + name + "...",
   GTK.GNOME_STOCK_BUTTON_OK, GTK.GNOME_STOCK_BUTTON_CANCEL);
   object vbox=addWindow->vbox();
   array ag=getMembersforGroup(0, ldap);
@@ -821,7 +835,7 @@ void openAddtoGroup()
 void openEnable()
 {
   string txt;
-  txt=cn;
+  txt=name;
   if(state!="locked")
   {
     openError("You may only enable disabled groups.");
@@ -861,7 +875,7 @@ void openEnable()
       if(res) 
       {
           openError("An error occurred while trying to "
-   	    "enable a group:\n\n Group: " + cn + "\n\n" +
+   	    "enable a group:\n\n Group: " + name + "\n\n" +
             ldap->error_string());
           return;        
       }
@@ -882,7 +896,7 @@ void openEnable()
 void openPassword(object r)
 {
   string txt;
-  txt=cn;
+  txt=name;
   object passwordWindow=Gnome.Dialog("Reset password for " +  txt + "...",
     GTK.GNOME_STOCK_BUTTON_OK, GTK.GNOME_STOCK_BUTTON_CANCEL);
   object vbox=passwordWindow->vbox();
@@ -919,7 +933,7 @@ void openPassword(object r)
       if(res!=0) 
       {
           openError("An error occurred while trying to "
-   	    "change a group's password:\n\n Group: " + cn + "\n\n" +
+   	    "change a group's password:\n\n Group: " + name + "\n\n" +
             ldap->error_string());
           return;        
       }
@@ -937,7 +951,7 @@ void openPassword(object r)
 void openMove(object r)
 {
   string txt;
-  txt=cn;
+  txt=name;
   object moveWindow=Gnome.Dialog("Move " +  txt + "...",
     GTK.GNOME_STOCK_BUTTON_OK, GTK.GNOME_STOCK_BUTTON_CANCEL);
   mapping td=([]);
