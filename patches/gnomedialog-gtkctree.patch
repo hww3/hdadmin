@@ -1,0 +1,57 @@
+--- src/post_modules/GTK/new_build_pgtk.pike.orig	Fri Jun  8 20:22:58 2001
++++ src/post_modules/GTK/new_build_pgtk.pike	Sat Oct 20 13:07:33 2001
+@@ -532,6 +532,7 @@
+ 	/* fall-through */
+       case "int":
+       case "string":
++      case "string...":
+       case "mixed":
+       case "mapping":
+       case "float": 
+@@ -1309,6 +1310,7 @@
+    case "float":
+    case "double":
+    case "string":
++   case "string...":
+    case "null":
+    case "void":
+    case "function":
+--- src/post_modules/GTK/source/gtkctree.pre.orig	Wed Mar 28 00:07:48 2001
++++ src/post_modules/GTK/source/gtkctree.pre	Sat Oct 20 13:08:19 2001
+@@ -239,9 +239,13 @@
+   INT_TYPE y;
+   gchar *p = NULL;
+   get_all_args( "get_*", args, "%o%d", &x, &y );
+-
+   my_pop_n_elems( args );
+-  gtk_ctree_node_get_text( GTK_CTREE( THIS->obj ),
++  if(y==0)
++    gtk_ctree_get_node_info( GTK_CTREE( THIS->obj ),
++			   get_pgdkobject(x,pgtk_ctree_node_program),
++			   &p, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
++  else
++    gtk_ctree_node_get_text( GTK_CTREE( THIS->obj ),
+                            get_pgdkobject(x,pgtk_ctree_node_program),
+                            y, &p );
+   if(p)
+--- src/post_modules/GTK/source/gnomedialog.pre.orig	Mon Dec 18 12:54:07 2000
++++ src/post_modules/GTK/source/gnomedialog.pre	Sat Oct 20 13:08:08 2001
+@@ -1,6 +1,7 @@
+ require gnome;
+ class Gnome.Dialog;
+ inherit GTK.Window;
++member GTK.Vbox vbox;
+ //! Gnome.Dialog gives dialogs a consistent look and feel, while making
+ //! them more convenient to program. Gnome.Dialog makes it easy to use
+ //! stock buttons, makes it easier to handle delete_event, and adds
+@@ -10,9 +11,7 @@
+ signal clicked;
+ signal close;
+ 
+-member GTK.Widget vbox;
+-
+-void create(string title, string buttons)
++void create(string title, string ... buttons)
+ //! Creates a new Gnome.Dialog, with the given title, and any button
+ //! names in the arg list. Buttons can be simple names, such as "My
+ //! Button", or gnome-stock defines such as GNOME.StockButtonOK,

@@ -1,0 +1,19 @@
+--- handshake.pike.orig Wed Oct 24 15:15:30 2001
++++ handshake.pike      Wed Oct 24 15:06:22 2001
+
+@@ -1038,10 +1039,13 @@
+       array(int) cert_types = input->get_var_uint_array(1, 1);
+ //       int num_distinguished_names = input->get_uint(2);
+ //       array(string) distinguished_names =
+-      send_packet(Alert(ALERT_fatal, ALERT_unexpected_message, version[1],
+-                       "SSL.session->handle_handshake: unexpected message\n",
++//      send_packet(Alert(ALERT_fatal, ALERT_unexpected_message, version[1],
++//             "SSL.session->handle_handshake: unexpected message\n",
++//                     backtrace()));
++      send_packet(Alert(ALERT_warning, ALERT_no_certificate, version[1],
++                       "",  backtrace()));
+-      return -1;
++//      return -1;
+       }
+       break;
+
