@@ -24,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.12 2002-06-13 21:56:12 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.13 2002-07-19 21:43:40 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.20"
 
@@ -296,8 +296,8 @@ int doConnect(string host, string username, string password, string basedn)
 #endif
     }
     int r=ldap->bind(username, password, 3);
-    if(r!=0) {
-      object c=Gnome.MessageBox("Login incorrect.",
+    if(r!=1) {
+      object c=Gnome.MessageBox(ldap->error_string(),
       GTK.GNOME_MESSAGE_BOX_ERROR, GTK.GNOME_STOCK_BUTTON_OK);    
       c->set_usize(275, 150);
       c->show();

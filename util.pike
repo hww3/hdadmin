@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.3 2002-04-30 01:40:31 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.4 2002-07-19 21:43:40 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -185,7 +185,8 @@ int removeUserfromGroup(string uid, string userdn, string groupdn, object ldap)
   int res=ldap->modify(groupdn, (["memberuid": ({ 1, uid}),
 			"uniquemember": ({ 1, userdn})
     ]));
-  return res;
+  if(!res) return ldap->error_number();
+  else return 0;
 }
 
 string generateLDIF(mapping info)
@@ -257,9 +258,9 @@ string uid=(((dn/",")[0])/"=")[1];
 string newuid=(((newdn/",")[0])/"=")[1];
 int res;
 res=ldap->modify(entry["dn"][0],(["uniquemember": ({1, dn }), "memberuid": ({1, uid})]));
-if(res) return res;
+if(!res) return ldap->error_number();
 res=ldap->modify(entry["dn"][0],(["uniquemember": ({0, newdn }), "memberuid": ({0, newuid})]));
-if(res) return res;
+if(!res) return ldap->error_number();
         r->next();
         }
       }
