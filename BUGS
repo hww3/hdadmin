@@ -1,12 +1,16 @@
 Current list of known issues:
 
+- auto home schema seems to be incompatible with solaris 8/9.
+
 - list/icon view selector isn't set properly on startup.
 
-- can't add or modify groups
-
-- can't add or modify hosts
+- can't add hosts.
 
 Bugs/issues fixed:
+
+- can't modify hosts. Fixed 20021020
+
+- can't add or modify groups. Fixed 20020920
 
 - referrals aren't handled at all (problem in Pike LDAP code). FIXED 20020722
   (Requires pike 7.3.49+)
