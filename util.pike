@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.13 2003-06-13 21:37:26 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.14 2003-06-16 15:15:00 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -172,7 +172,6 @@ mapping loadPreferences()
 
 void setupTree(object t, mapping td)
 {
-//  object px=getPixmapfromFile("icons/spiral-sm.png");
   td->root=t->insert_node(0, 0, ({"HyperActive Directory"}), 0, 0);
   t->expand_recursive();
 }
@@ -200,7 +199,7 @@ object addItemtoPage(object item, string desc, object page)
   label->set_justify(GTK.JUSTIFY_RIGHT);
   hbox->pack_start(label->show(), 0, 0 , 4);
   hbox->pack_end(item->show(), 0, 0, 4);
-  page->pack_start(hbox->show(), 0, 0, 3);
+  page->pack_start(hbox->show(), 0, 0, 0);
   return hbox;
 }
 
@@ -591,8 +590,8 @@ mapping pixmapcache=([]);
 
 object getPixmapfromFile(string filename)
 {
-  if(pixmapcache[filename])
-    return pixmapcache[filename];
+  if(pixmapcache[filename] && objectp(pixmapcache[filename]))
+    return GDK.Pixmap(pixmapcache[filename]);
   else
   {
     object p=Image.load(filename);
@@ -604,8 +603,8 @@ object getPixmapfromFile(string filename)
 
 object getImagefromFile(string filename)
 {
-  if(pixmapcache[filename])
-    return pixmapcache[filename];
+  if(pixmapcache[filename] && objectp(pixmapcache[filename]))
+    return GDK.Image(0, pixmapcache[filename]);
   else
   {
     object p=Image.load(filename);
@@ -617,8 +616,8 @@ object getImagefromFile(string filename)
 
 object getBitmapfromFile(string filename)
 {
-  if(pixmapcache[filename])
-    return pixmapcache[filename];
+  if(pixmapcache[filename] && objectp(pixmapcache[filename]))
+    return GDK.Bitmap(pixmapcache[filename]);
   else
   {
     object p=Image.load(filename);

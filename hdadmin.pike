@@ -24,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.21 2003-06-16 14:34:43 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.22 2003-06-16 15:15:00 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.2.5"
 
@@ -200,8 +200,16 @@ void openConnect()
   connectWindow=Gnome.Dialog("Connect to LDAP Server",
 	Gnome.StockButtonOk ,
 	Gnome.StockButtonCancel);
-  connectWindow->set_usize(300,0);
-  object vbox=connectWindow->vbox();
+  connectWindow->set_usize(350,0);
+  object pane=connectWindow->vbox();
+  object vbox=GTK.Vbox(0,0)->show();
+  object hb=GTK.Hbox(0,0)->show(); 
+  
+  hb->pack_start_defaults(GTK.Pixmap(
+     getPixmapfromFile("icons/directory_server.png"),
+     getBitmapfromFile("icons/directory_server_mask.png"))->show());
+  hb->pack_end_defaults(vbox);
+  pane->pack_start_defaults(hb);
   object host=Gnome.Entry("LDAPHOST");
   object basedn=Gnome.Entry("BASEDN");
   object username=Gnome.Entry("ROOTDN");
