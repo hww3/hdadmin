@@ -1,0 +1,10 @@
+#!/bin/sh
+
+HDADIR=/usr/local/hdadmin
+PIKE=/usr/local/bin/pike
+
+PWD=`pwd`
+
+cd $HDADIR
+$PIKE hdadmin.pike
+cd $PWD
