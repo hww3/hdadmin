@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: user.pike,v 1.6 2002-07-22 19:22:48 hww3 Exp $";
+constant cvs_version="$Id: user.pike,v 1.7 2002-07-22 20:09:44 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -129,7 +129,8 @@ int checkUserChanges(string dn, mapping w)
           object c=Gnome.MessageBox("Numeric User ID " + w->uidnumber + 
             " is already in use by " + uid + "."
             "\nDo you really want to have duplicate User IDs?", 
-            GTK.GNOME_STOCK_BUTTON_CANCEL, GTK.GNOME_STOCK_BUTTON_OK);    
+		Gnome.MessageBoxInfo,
+                Gnome.StockButtonCancel, Gnome.StockButtonOk);    
     
           c->set_usize(375, 150);
           c->show();
@@ -245,7 +246,7 @@ int doUserChanges(string dn, mapping whatchanged)
 #ifdef DEBUG
 werror("adding entry: " + sprintf("%O", entry) + "\n");
 #endif
-    res=ldap->add(whatchanged->dn, entry);
+    res=ldap->agressive_add(whatchanged->dn, entry);
 
     if(!res) return ldap->error_number();
 
@@ -354,14 +355,14 @@ werror("adding entry: " + sprintf("%O", entry) + "\n");
       string autohdn=getAutoHomeDN(uid, ldap);
       if(autohdn) // found one, so change it.
       { 
-        res=ldap->modifydn(autohdn, "cn=" + whatchanged->uid, 1);
+        res=ldap->agressive_modifydn(autohdn, "cn=" + whatchanged->uid, 1);
         if(!res) return ldap->error_number();
         autohdn=getAutoHomeDN(whatchanged->uid, ldap);
-        res=ldap->aggressive_modify(autohdn, (["cn": ({2, whatchanged->uid})]));
+        res=ldap->agressive_modify(autohdn, (["cn": ({2, whatchanged->uid})]));
         if(!res) return ldap->error_number();
       }
       // then change the dn.
-      res=ldap->modifydn(whatchanged->dn, "uid=" + whatchanged->uid, 1);
+      res=ldap->agressive_modifydn(whatchanged->dn, "uid=" + whatchanged->uid, 1);
       if(!res) return ldap->error_number();
       newdn=(whatchanged->dn/",");
       newdn[0]="uid=" + whatchanged->uid;
@@ -438,7 +439,7 @@ werror(sprintf("CHANGES: %O\n", change));
 #ifdef DEBUG
       werror("deleting the autohome record...");
 #endif
-      res=ldap->delete(autohomedirectorydn);
+      res=ldap->agressive_delete(autohomedirectorydn);
       if(!res) return ldap->error_number();
 #ifdef DEBUG
       werror("done.\n");
@@ -454,7 +455,7 @@ werror(sprintf("CHANGES: %O\n", change));
 #ifdef DEBUG
        werror("modifying the autohome directory record...");
 #endif
-       res=ldap->aggressive_modify(autohomedirectorydn, ([ 
+       res=ldap->agressive_modify(autohomedirectorydn, ([ 
               "nismapentry": ({2, whatchanged->autohomedirectory})
               ]));
        if(!res) return ldap->error_number();
@@ -471,7 +472,7 @@ werror(sprintf("CHANGES: %O\n", change));
       werror("adding auto_home entry for " + uid + ", dn=" +
          autohomedirectorydn + "...");
 #endif
-      res=ldap->add(autohomedirectorydn, ([ 
+      res=ldap->agressive_add(autohomedirectorydn, ([ 
               "nismapentry": ({whatchanged->autohomedirectory}),
               "cn": ({uid}),
               "nismapname": ({"auto_home"}),
@@ -527,7 +528,7 @@ void applyProperties(mapping whatchanged, object widget, mixed args)
     if(checkUserChanges(whatchanged->dn, whatchanged))
       return;
     else res=doUserChanges(whatchanged->dn, whatchanged);
-    if(res)
+    if(!res)
     {
       openError("An error occurred while modifying a user: " +
 	"\n\n" + ldap->error_number() + " " + 
@@ -664,20 +665,18 @@ int addUsertoGroup(string groupdn)
 {
   if(uid=="" || dn=="" || groupdn=="")  return 0;
   if(!uid || !dn || !groupdn)  return 0;
-  int res=ldap->modify(groupdn, (["memberuid": ({ 0, uid}),
+  int res=ldap->agressive_modify(groupdn, (["memberuid": ({ 0, uid}),
 			"uniquemember": ({ 0, dn})
     ]));
-  if(!res) return ldap->error_number();
-  else return 0;
+  return res;
 }
 
 int removeUserfromGroup(string groupdn)
 {
-  int res=ldap->modify(groupdn, (["memberuid": ({ 1, uid}),
+  int res=ldap->agressive_modify(groupdn, (["memberuid": ({ 1, uid}),
 			"uniquemember": ({ 1, dn})
     ]));
-  if(!res) return ldap->error_number();
-  else return 0;
+  return res;
 }
 
 void loadData()
@@ -757,7 +756,7 @@ void openProperties()
 #ifdef DEBUG
         werror("adding objectclass " + oc1 + " for user " + dn + "\n");
 #endif
-        ldap->modify(dn, (["objectclass": ({0, oc1})]));    
+        ldap->agressive_modify(dn, (["objectclass": ({0, oc1})]));    
       }
     }
   }
@@ -963,7 +962,7 @@ foreach(selection, int row)
     werror("adding group membership: " + d->dn + " for user " + info["uid"][0] + "\n");
 #endif
     int res=addUsertoGroup(d->dn);
-    if(res) openError("An error occurred while adding a group membership:\n\n" + ldap->error_string(res));
+    if(!res) openError("An error occurred while adding a group membership:\n\n" + ldap->error_string());
     else
     {
       groupmemberships->freeze();
@@ -992,7 +991,7 @@ foreach(selection, int row)
     werror("removing group membership: " + d->dn + " for user " + info["uid"][0] + "\n");
 #endif
     int res=removeUserfromGroup(d->dn);
-    if(res) openError("An error occurred while removing a group membership:\n\n" + ldap->error_string(res));
+    if(!res) openError("An error occurred while removing a group membership:\n\n" + ldap->error_string());
     else
     {
       int row=groupmemberships->remove(row);
@@ -1133,7 +1132,7 @@ int doMove(object new)
 #ifdef DEBUG
   werror("getting ready to move " + newrdn + " to new dn: " + new->dn + "\n");
 #endif
-  int res=ldap->modifydn(dn, newrdn, 1, newrdn+","+new->dn);
+  int res=ldap->agressive_modifydn(dn, newrdn, 1, newrdn+","+new->dn);
   if(!res) return ldap->error_number();
   else return 0;
 }
@@ -1146,7 +1145,7 @@ int doEnable(string password)
                                    (string)(time()/(60*60*24))}) 
 		]);
 
-  res=ldap->modify(dn, change);
+  res=ldap->agressive_modify(dn, change);
 
 #ifdef DEBUG
   werror(sprintf("%O\n", change));
@@ -1163,7 +1162,7 @@ int doPassword(string password)
                                    (string)(time()/(60*60*24))}) 
 		]);
 
-  res=ldap->modify(dn, change);
+  res=ldap->agressive_modify(dn, change);
 
 #ifdef DEBUG
   werror(sprintf("%O\n", change));
@@ -1177,15 +1176,15 @@ int doRename(string fn)
   string firstcomp=(dn/"=")[0];
   firstcomp-=" ";
   int res;
-  res=ldap->modify(dn, (["gecos":({2, fn})]));
+  res=ldap->agressive_modify(dn, (["gecos":({2, fn})]));
   if(!res) return ldap->error_number();
-  res=ldap->modify(dn, (["cn":({2, fn})]));
+  res=ldap->agressive_modify(dn, (["cn":({2, fn})]));
   if(!res) return ldap->error_number();
   string newrdn="cn=" + fn;
   if(firstcomp=="cn")  // we have to modify the dn as well.
   {
     string newdn=({newrdn, (dn/",")[1..]})*",";
-    int res=ldap->modifydn(dn, newrdn, 1);
+    int res=ldap->agressive_modifydn(dn, newrdn, 1);
     if(!res) return ldap->error_number();
     else
     {
@@ -1198,7 +1197,7 @@ int doRename(string fn)
 
 int doDisable()
 {
-  int res=ldap->modify(dn, (["userpassword":({2, "{crypt}*LK*"})]));
+  int res=ldap->agressive_modify(dn, (["userpassword":({2, "{crypt}*LK*"})]));
   if(!res) return ldap->error_number();
   return 0;
 }
@@ -1222,16 +1221,17 @@ int doDelete()
   foreach(groups, string g)
   {
     werror("deleting " + uid + ", " + dn + " from group " + g[2] + ".\n");
-    ldap->modify(g[2], (["uniquemember": ({1, dn}), "memberuid": ({1, uid})]));
+    ldap->agressive_modify(g[2], (["uniquemember": ({1, dn}), 
+        "memberuid": ({1, uid})]));
   }
   string ahdn=getAutoHomeDN(uid, ldap);
   int res;
   if(ahdn)
   {
-    res=ldap->delete(ahdn);
+    res=ldap->agressive_delete(ahdn);
     if(!res) return ldap->error_number();
   }
-  res=ldap->delete(dn);
+  res=ldap->agressive_delete(dn);
   if(!res) return ldap->error_number();
   else return 0;
   }
@@ -1241,11 +1241,11 @@ int doDelete()
 void openDisable()
 {
   int res=doDisable();
-  if(res!=0) 
+  if(!res) 
   {
     openError("An error occurred while trying to "
       "disable an user:\n\n User: " + cn + "\n\n" +
-      ldap->error_string(res));
+      ldap->error_string());
     return;        
   }
   else this->refreshView();
@@ -1255,10 +1255,10 @@ void openDisable()
 void openDelete()
 {
   int res=doDelete();
-  if(res!=0)
+  if(!res)
     openError("An error occurred while trying to "
       "delete an user:\n\n User: " + cn + "\n\n" +
-      ldap->error_string(res));
+      ldap->error_string());
   else   this->refreshView();
   return;        
 }
@@ -1292,11 +1292,11 @@ void openAddtoGroup()
         werror("adding group for " + uid + "\n");
 #endif
         int res=addUsertoGroup(selectedgroup->dn);
-        if(res!=0) 
+        if(!res) 
         {
           openError("An error occurred while trying to "
    	  "add the following user to a group:\n\n User: " + cn + "\n\n" +
-  	ldap->error_string(res));
+  	ldap->error_string());
 //          refreshView();
           return;        
         }
@@ -1346,11 +1346,11 @@ void openEnable()
       }
       else 
         res=doEnable(password->get_text());
-      if(res!=0) 
+      if(!res) 
       {
           openError("An error occurred while trying to "
    	    "enable a user:\n\n User: " + cn + "\n\n" +
-            ldap->error_string(res));
+            ldap->error_string());
           return;        
       }
       else 
@@ -1408,7 +1408,7 @@ void openPassword(object r)
       {
           openError("An error occurred while trying to "
    	    "change a user's password:\n\n User: " + cn + "\n\n" +
-            ldap->error_string(res));
+            ldap->error_string());
           return;        
       }
       else break;
@@ -1452,11 +1452,11 @@ void openMove(object r)
       werror("new location: " + newlocation->dn + "\n");
 #endif
       res=doMove(newlocation);
-      if(res!=0) 
+      if(!res) 
       {
         openError("An error occurred while trying to "
    	"move an item:\n\n" +
-	ldap->error_string(res));
+	ldap->error_string());
       }
       else this->refreshView();
     moveWindow->close();

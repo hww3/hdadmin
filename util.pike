@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.5 2002-07-22 19:22:48 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.6 2002-07-22 20:09:44 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -36,15 +36,72 @@ class LDAPConn
   string USER, USERPASS;
   string BASEDN;
 
+  int agressive_delete(mixed a)
+  {
+    int res;
+    res=delete(a);
+    mixed r=get_referrals();
+    if(!res && r)
+    {
+      foreach(r, string ref)
+      {
+         werror("Attempting connection to " + ref + "...\n");
+         object context=SSL.context();
+         object lref;
+         catch(lref=Protocols.LDAP.client(ref, context));
+         if(!lref) continue;
+         werror("Connected.\n");
+         res=lref->bind(USER, USERPASS);
+         if(!res) continue;
+         werror("Bound.\n");
+         lref->set_basedn(BASEDN);
+         res=lref->delete(a);
+         werror("Ran delete, res=" + res + ", error=" + 
+             lref->error_number() + ".\n");
+         if(res) return res;
+         else continue;
+      }
+    }
+    return res;
+  }
+
+  int agressive_add(mixed a, mixed b)
+  {
+    int res;
+    res=add(a, b);
+    mixed r=get_referrals();
+    if(!res && r)
+    {
+      foreach(r, string ref)
+      {
+         werror("Attempting connection to " + ref + "...\n");
+         object context=SSL.context();
+         object lref;
+         catch(lref=Protocols.LDAP.client(ref, context));
+         if(!lref) continue;
+         werror("Connected.\n");
+         res=lref->bind(USER, USERPASS);
+         if(!res) continue;
+         werror("Bound.\n");
+         lref->set_basedn(BASEDN);
+         res=lref->add(a, b);
+         werror("Ran delete, res=" + res + ", error=" + 
+             lref->error_number() + ".\n");
+         if(res) return res;
+         else continue;
+      }
+    }
+    return res;
+  }
+
   int agressive_modify(string cdn, mapping change)
   {
     int res;
     res=modify(cdn, change);
     mixed r=get_referrals();
-    werror("Referrals: " + sprintf("%O", r) + "\n");
     if(!res && r)
     {
-      foreach(({}), string ref)
+      foreach(r, string ref)
       {
          werror("Attempting connection to " + ref + "...\n");
          object context=SSL.context();
@@ -59,7 +116,36 @@ class LDAPConn
          res=lref->modify(cdn, change);
          werror("Ran modify, res=" + res + ", error=" + 
              lref->error_number() + ".\n");
-         if(!res) break;
+         if(res) return res;
+         else continue;
+      }
+    }
+    return res;
+  }
+
+  int agressive_modifydn(mixed a, mixed b, mixed c)
+  {
+    int res;
+    res=modifydn(a, b, c);
+    mixed r=get_referrals();
+    if(!res && r)
+    {
+      foreach(r, string ref)
+      {
+         werror("Attempting connection to " + ref + "...\n");
+         object context=SSL.context();
+         object lref;
+         catch(lref=Protocols.LDAP.client(ref, context));
+         if(!lref) continue;
+         werror("Connected.\n");
+         res=lref->bind(USER, USERPASS);
+         if(!res) continue;
+         werror("Bound.\n");
+         lref->set_basedn(BASEDN);
+         res=lref->modifydn(a, b, c);
+         werror("Ran modifydn, res=" + res + ", error=" + 
+             lref->error_number() + ".\n");
+         if(res) return res;
          else continue;
       }
     }
@@ -87,8 +173,7 @@ mapping loadPreferences()
 void setupTree(object t, mapping td)
 {
   object px=getPixmapfromFile("icons/spiral-sm.png");
-  td->root=t->insert_node(0, 0, ({"HyperActive Directory"}), 0,
-0);
+  td->root=t->insert_node(0, 0, ({"HyperActive Directory"}), 0, 0);
   t->expand_recursive();
 }
 
