@@ -1,3 +1,19 @@
+Changes since version 0.2.0
+
+Each object type is handled by a separate class within Objects.pmod. 
+
+Added new list view. 
+
+Added default configuration file.
+
+Configuration read from ~/.hdadmin and /etc/hdadmin.conf
+
+List view is now default.
+
+Basic user add functionality present. Defaults stored in default/.
+
+User object CN display and storage configurable separately (lastname first, etc).
+
 Changes since version 0.1.0:
 
 Users may log in using either DNs or a user id located beneath the base DN
