@@ -6,11 +6,13 @@ Added new list view.
 
 Added default configuration file.
 
-Configuration read from ~/.hdadmin and /etc/hdadmin.conf
+Configuration read from ~/.hdadmin and /etc/hdadmin.conf and DIST/hdadmin_defaults.conf
 
 List view is now default.
 
 Basic user add functionality present. Defaults stored in default/.
+
+Can create and populate home directory locally or remotely through ssh/rsh.
 
 User object CN display and storage configurable separately (lastname first, etc).
 

@@ -1,0 +1,7 @@
+Current list of known issues:
+
+- referrals aren't handled at all (problem in Pike LDAP code).
+ 
+- list/icon view selector isn't set properly on startup.
+
+- mailrecipient object class is missing from newly created user accounts. FIXED 20020513

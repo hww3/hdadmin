@@ -9,7 +9,8 @@
         "person",
         "posixaccount",
         "shadowaccount",
-        "top"
+        "top",
+	"mailrecipient"
     }),
   "shadowmax":({ /* 1 element */
         "90"

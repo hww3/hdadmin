@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: user.pike,v 1.3 2002-05-13 22:18:09 hww3 Exp $";
+constant cvs_version="$Id: user.pike,v 1.4 2002-05-14 01:52:21 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -269,16 +269,47 @@ werror("adding entry: " + sprintf("%O", entry) + "\n");
 #ifdef DEBUG
 	werror("creating home directory using runcmd: " + runcmd + "\n");
 #endif
-	Process.system(runcmd + "mkdir " + whatchanged->homedirectory);
+        int r;
+	r=Process.system(runcmd + "mkdir " + whatchanged->homedirectory);
+        if(r) 
+        {
+            openError("An error occurred while creating "
+		"the user home directory");
+            return 1;
+        }
         if(this->preferences->remote_create->skel)
   	  Process.system(runcmd + "cp -rfp " + (this->preferences->remote_create->skel||"/etc/skel")+ "/. " + 
 		whatchanged->homedirectory+"/");
+        if(r) 
+        {
+            openError("An error occurred while populating "
+		"the user home directory");
+            return 1;
+        }
 	Process.system(runcmd + "chown -R " + whatchanged->uid + " " +
 		whatchanged->homedirectory);
+        if(r) 
+        {
+            openError("An error occurred while setting "
+		"owner for the user home directory");
+            return 1;
+        }
 	Process.system(runcmd + "chgrp -R " + whatchanged->gidnumber + " " + 
 		whatchanged->homedirectory);
+        if(r) 
+        {
+            openError("An error occurred while setting the "
+		"group for the user home directory");
+            return 1;
+        }
 	Process.system(runcmd + "chmod " + (this->preferences->remote_create->mode||"700")+ " " + 
 		whatchanged->homedirectory);
+        if(r) 
+        {
+            openError("An error occurred while setting "
+		"permissions on the user home directory");
+            return 1;
+        }
 
 #ifdef DEBUG
 	werror("done creating home directory.\n");
