@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: user.pike,v 1.2 2002-04-30 01:40:32 hww3 Exp $";
+constant cvs_version="$Id: user.pike,v 1.3 2002-05-13 22:18:09 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -221,6 +221,9 @@ int doUserChanges(string dn, mapping whatchanged)
 
   m_delete(wc, "dn");
   m_delete(wc, "useautohome");
+  m_delete(wc, "createhome");
+  m_delete(wc, "createonhost");
+  m_delete(wc, "createon");
   m_delete(wc, "autohomedirectory");
   m_delete(wc, "propertiesWindow");
   m_delete(wc, "newObject");
@@ -245,6 +248,42 @@ werror("adding entry: " + sprintf("%O", entry) + "\n");
     res=ldap->add(whatchanged->dn, entry);
 
     if(res) return res;
+
+    if(whatchanged->createhome) // let us create the home directory
+    {
+        string runcmd="";
+        if(!whatchanged->createonhost)
+        {
+           if(this->preferences->remote_create && 
+              this->preferences->remote_create->host)
+              whatchanged->createonhost=this->preferences->remote_create->host;
+           else whatchanged->createonhost="";
+        }
+        if(whatchanged->createonhost=="") // are we doing it to a local disk?
+          runcmd="";
+        else {
+          runcmd=this->preferences->remote_create->rsh_path + " -l" + 
+		this->preferences->remote_create->rsh_user + " ";
+          runcmd+=(whatchanged->createonhost + " ");
+        }
+#ifdef DEBUG
+	werror("creating home directory using runcmd: " + runcmd + "\n");
+#endif
+	Process.system(runcmd + "mkdir " + whatchanged->homedirectory);
+        if(this->preferences->remote_create->skel)
+  	  Process.system(runcmd + "cp -rfp " + (this->preferences->remote_create->skel||"/etc/skel")+ "/. " + 
+		whatchanged->homedirectory+"/");
+	Process.system(runcmd + "chown -R " + whatchanged->uid + " " +
+		whatchanged->homedirectory);
+	Process.system(runcmd + "chgrp -R " + whatchanged->gidnumber + " " + 
+		whatchanged->homedirectory);
+	Process.system(runcmd + "chmod " + (this->preferences->remote_create->mode||"700")+ " " + 
+		whatchanged->homedirectory);
+
+#ifdef DEBUG
+	werror("done creating home directory.\n");
+#endif
+    }
 
   }
   else
@@ -545,6 +584,35 @@ void autoHomeToggled3(object what, object widget, mixed ... args)
   what->changed();
 }
 
+void createHomeToggled(object what, object widget, mixed ... args)
+{
+  if(widget->get_active()) 
+  {
+    what->show(); 
+  }
+  else 
+  {
+    what->hide();
+  }
+}
+
+void createHomeToggled2(mapping w, object widget, mixed ... args)
+{
+  if(widget->get_active()) 
+  {
+    w->createhome=1;
+  }
+  else 
+  {
+    w->createhome=0;
+  }
+}
+
+void createHomeToggled3(object what, object widget, mixed ... args)
+{
+  what->changed();
+}
+
 int addUsertoGroup(string uid, string userdn, string groupdn)
 {
   if(uid=="" || userdn=="" || groupdn=="")  return 0;
@@ -694,6 +762,12 @@ void openProperties()
   object mail=addProperty("mail", tmp, GTK.Entry());
   tmp=getTextfromEntry("homedirectory", info);
   object homedirectory=addProperty("homedirectory", tmp, GTK.Entry());
+  if(this->preferences->remote_create && 
+    this->preferences->remote_create->host)
+      tmp=this->preferences->remote_create->host;
+  else tmp="";
+  object createonhost=addProperty("createonhost", tmp, GTK.Entry());
+  
   // we will set the value for autohomedirectory later.
   object autohomedirectory=addProperty("autohomedirectory", "", GTK.Entry());
   tmp=getTextfromEntry("shadowmax", info);
@@ -731,6 +805,9 @@ void openProperties()
   tmp=getTextfromEntry("mailforwardingaddress", info);
   object mailforwardingaddress=addProperty("mailforwardingaddress", tmp, GTK.Entry());
   object useautohome=GTK.CheckButton("Use Automount for Home");
+  object createhome;
+  if(newuser)
+    createhome=GTK.CheckButton("Create Home Directory");
   object objectsource=GTK.Text();
   array ag=getGroupsforMember(0, ldap);
   object allgroups=newGroupList(ag);
@@ -784,12 +861,28 @@ void openProperties()
   addItemtoPage(mailforwardingaddress, "Deliver Mail To", mailtab);
   addItemtoPage(loginshell, "Login Shell", accounttab);
   addItemtoPage(telephonenumber, "Telephone Number", generaltab);
+  object createon;
+  if(newuser)
+  {
+    environmenttab->pack_start(createhome->show(),0,0,4);
+    createon=addItemtoPage(createonhost, "Create on host", 
+      environmenttab);
+    createon->hide();
+
+  }
+
   environmenttab->pack_start(useautohome->show(),0,0,4);
   object amh=addItemtoPage(autohomedirectory, "AutoMount Home From", environmenttab);
   amh->hide();
   useautohome->signal_connect("toggled", autoHomeToggled, amh);
   useautohome->signal_connect("toggled", autoHomeToggled2, whatchanged);
   useautohome->signal_connect("toggled", autoHomeToggled3, propertiesWindow);
+  if(newuser)
+  {
+    createhome->signal_connect("toggled", createHomeToggled, createon);
+    createhome->signal_connect("toggled", createHomeToggled2, whatchanged);
+    createhome->signal_connect("toggled", createHomeToggled3, propertiesWindow);
+  }
   addItemtoPage(shadowmax, "Max Password Life", environmenttab);
   addItemtoPage(shadowmin, "Min Password Life", environmenttab);
   addItemtoPage(shadowwarning, "Password Warning (Days)", environmenttab);
@@ -881,6 +974,8 @@ foreach(selection, int row)
   mailforwardingaddress->signal_connect("changed", propertiesChanged, whatchanged);
   loginshell->entry()->signal_connect("changed", propertiesChanged, whatchanged);
   autohomedirectory->signal_connect("changed", propertiesChanged, whatchanged);
+  if(newuser)
+    createonhost->signal_connect("changed", propertiesChanged, whatchanged);
   shadowmax->signal_connect("changed", propertiesChanged, whatchanged);
   shadowmin->signal_connect("changed", propertiesChanged, whatchanged);
   shadowwarning->signal_connect("changed", propertiesChanged, whatchanged);
