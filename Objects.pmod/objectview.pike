@@ -109,34 +109,34 @@ void change_view(string viewas)
 void add_object(mapping item, object ldap, object this)
 {
 #ifdef DEBUG
-werror("add_object: " + item->name + "\n");
+werror("add_object: " + item->title + "\n");
 #endif
   int addedrow;
   if(item->state=="locked")
   {
     if(view_type=="list")
     {
-      addedrow=view->insert(0, ({item->name, (item->uid||"") }) );
+      addedrow=view->insert(0, ({item->title, (item->subtitle||"") }) );
       object px=getPixmapfromFile("icons/" + item->type + "-locked-vsm.png");
-      view->set_pixtext(0, addedrow, item->name, 5, px);
+      view->set_pixtext(0, addedrow, item->title, 5, px);
     }
     else if(view_type=="icons")
-      addedrow=view->insert(0, "icons/" + item->type + "-locked-sm.png", item->name);
+      addedrow=view->insert(0, "icons/" + item->type + "-locked-sm.png", item->title);
   }
   else
   {
     if(view_type=="list")
     {
-      addedrow=view->insert(0, ({item->name, (item->uid||"") }) );
+      addedrow=view->insert(0, ({item->title, (item->subtitle||"") }) );
       object px=getPixmapfromFile("icons/" + item->type + "-vsm.png");
-      view->set_pixtext(addedrow, 0, item->name, 5, px);
+      view->set_pixtext(addedrow, 0, item->title, 5, px);
     }
     else if(view_type=="icons")
     {
 #ifdef DEBUG
 werror("add_object: " + item->name + " inserting icon...");
 #endif
-      addedrow=view->insert(0, "icons/" + item->type + "-sm.png", item->name);
+      addedrow=view->insert(0, "icons/" + item->type + "-sm.png", item->title);
 #ifdef DEBUG
 werror("done.\n");
 #endif
@@ -162,10 +162,10 @@ object make_object(mapping item, object ldap, object this)
   object d;
   if(Objects[item->type])
     d=Objects[item->type](ldap, this, item->dn, item->name, 
-	item->state, (item->uid||""));
+	item->state, (item->uid||item->cn||""));
   else
     d=Objects.generic(ldap, this, item->dn, item->name, 
-	item->state, (item->uid||""));
+	item->state, (item->uid||item->cn||""));
   return d;
 }
 

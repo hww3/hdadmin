@@ -24,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.15 2002-07-23 20:53:52 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.16 2002-09-13 22:14:00 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.2.5"
 
@@ -430,7 +430,7 @@ mixed newActionsPopup()
   if(isConnected && treeselection) defs+=
   ({
     MenuDef( "New User...", openNew, "user" ),
-    MenuDef( "New Group...", openAbout, 0 ),
+    MenuDef( "New Group...", openNew, "group" ),
     MenuDef( "New Host...", openAbout, 0 ), 
     MenuDef( "New Mail Alias...", openAbout, 0 ),
     MenuDef( "<separator>", openDisconnect, 0 )
@@ -687,7 +687,7 @@ void showIcons(mixed what, object widget, mixed selected)
 
   string filter="!(|(objectclass=organizationalunit)(objectclass=organization))";
   object res=ldap->search(filter, ({"dn", "objectclass", "cn",
-     "userpassword", "uid", "sn", "givenname"}));
+     "description", "userpassword", "uid", "sn", "givenname"}));
   array n=({});
   array ent=({});
   for(int i=0; i<res->num_entries(); i++)
@@ -717,6 +717,9 @@ void showIcons(mixed what, object widget, mixed selected)
     state=getStateofObject(type, entry);
  
     catch(item=entry["cn"][0]);
+    string description="";
+    if(entry["description"])
+      description=entry["description"][0];
     if(type=="user")
     {
     if(entry && !entry["sn"])
@@ -735,11 +738,21 @@ void showIcons(mixed what, object widget, mixed selected)
         item=entry["givenname"][0] + " " + entry["sn"][0];
     }
     if(item && type[0..3]=="user")
-      rightpane->add_object(([ "name": item, "type": type, "state": state, 
+    {
+#ifdef DEBUG
+werror("title: " + item +"\n");
+#endif
+      rightpane->add_object(([ "title": item, "subtitle": entry["uid"][0], 
+	"name": item, "type": type, "state": state, 
 	"dn": entry["dn"][0], "uid": entry["uid"][0] ]), ldap, this_object());
+    }
     else
-      rightpane->add_object((["name": item, "type": type, 
-	"dn": entry["dn"][0] ]), ldap, this_object());
+    {
+      rightpane->add_object((["title": (entry["description"]?entry["description"][0]:item),
+	"subtitle": item,
+	"name": item, "type": type, "description": description,
+	"state": state, "dn": entry["dn"][0] ]), ldap, this_object());
+    }
 #ifdef DEBUG
 werror("added item.\n");
 #endif

@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.8 2002-07-25 22:03:13 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.9 2002-09-13 22:14:01 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -224,9 +224,40 @@ int getGidfromName(string n, object ldap)
   else return (int)(fix_entry(r->fetch())["gidnumber"][0]);
 }
 
+int getGidfromDN(string n, object ldap)
+{
+  string filter="(objectclass=posixgroup)";
+  ldap->set_basedn(n);
+  ldap->set_scope(0);
+  object r=ldap->search(filter);
+#ifdef DEBUG
+  werror("getGidfromDN: " + r->num_entries() + " rows\n");
+#endif
+  if(r->num_entries()==0)
+   return -1;
+  else return (int)(fix_entry(r->fetch())["gidnumber"][0]);
+}
+
 array getUidfromUidnumber(string n, object ldap)
 {
   string filter="(&(objectclass=posixaccount)(uidnumber=" + n + "))";
+  ldap->set_basedn(ldap->BASEDN);
+  ldap->set_scope(2);
+  object r=ldap->search(filter);
+  if(r->num_entries()==0)
+   return ({});
+  array g=({});
+  for(int i=0; i<r->num_entries(); i++)
+  {
+    g+=({fix_entry(r->fetch())["cn"][0]});
+    r->next();
+  }
+  return g;
+}
+
+array getGidfromGidnumber(string n, object ldap)
+{
+  string filter="(&(objectclass=posixgroup)(gidnumber=" + n + "))";
   ldap->set_basedn(ldap->BASEDN);
   ldap->set_scope(2);
   object r=ldap->search(filter);
@@ -354,6 +385,88 @@ array getGroupsforMember(string|void uid, object ldap)
   return g;
 }
 
+array getMembersofPrimaryGroup(string g, object ldap)
+{
+  array m=({});
+  string filter="(&(objectclass=posixaccount)(gidnumber=" + g+ "))";
+#ifdef DEBUG
+  werror(" filter: " + filter + "\n");
+#endif
+  ldap->set_basedn(ldap->BASEDN);
+  ldap->set_scope(2);
+  object r=ldap->search(filter);
+  if(r->num_entries()==0) return ({});
+  for(int i=0; i< r->num_entries(); i++)
+  {
+    mapping m1=fix_entry(r->fetch());
+    m+=({m1["uid"][0]});
+  }
+  return m;
+}
+
+array getMembersforGroup(string|void dn, object ldap)
+{ 
+#ifdef DEBUG
+  werror("getMembersforGroup: " + dn + "\n");
+#endif
+
+  array g=({});
+  string filter;
+  if(dn && dn!="")
+  {
+     filter="objectclass=*";
+#ifdef DEBUG
+     werror(" filter: " + filter + "\n");
+#endif
+     ldap->set_basedn(dn);
+     ldap->set_scope(0);
+     object r=ldap->search(filter);
+     if(r->num_entries()==0) return ({});
+     mapping m1=fix_entry(r->fetch());
+     if(m1["uniquemember"] && sizeof(m1["uniquemember"])>0)
+       foreach(m1["uniquemember"], string mdn)
+       {
+#ifdef DEBUG
+         werror("getting data for member " + mdn + "\n");
+#endif
+         filter="objectclass=*";
+         ldap->set_basedn(mdn);
+         ldap->set_scope(0);
+         object r=ldap->search(filter);
+         if(r->num_entries()==0) continue;
+         mapping m=fix_entry(r->fetch());
+         array gt=({m["uid"][0], m["cn"][0],
+         m["dn"][0], m["uidnumber"][0]});
+         g+=({gt}); 
+         r->next();
+       }
+  }
+  else
+  {
+     filter="(objectclass=posixaccount)";
+#ifdef DEBUG
+     werror(" filter: " + filter + "\n");
+#endif
+     ldap->set_basedn(ldap->BASEDN);
+     ldap->set_scope(2);
+     object r=ldap->search(filter);
+     if(r->num_entries()==0) return ({});
+
+     else for(int i=0; i< r->num_entries(); i++)
+     {
+       mapping m=fix_entry(r->fetch());
+       string desc="";
+       if(m["description"])
+       desc=m["description"][0];
+       array gt=({m["uid"][0], m["cn"][0],
+          m["dn"][0], m["uidnumber"][0]});
+       g+=({gt}); 
+       r->next();
+    }
+  }
+  return g;
+}
+
 mapping fix_entry(mapping orig)
 {
   foreach(indices(orig), string att)
@@ -431,6 +544,38 @@ class newGroupList
   }
 }
 
+
+class newMemberList
+{
+
+  object allmembers;
+  object hb4;
+
+  void create(array ga)
+  {
+  object adj2=GTK.Adjustment();  
+  object scr2=GTK.Vscrollbar(adj2)->show();
+  hb4=GTK.Hbox(0,0)->show();
+  allmembers=GTK.Clist(2);
+  allmembers->set_vadjustment(adj2);
+  allmembers->set_usize(150,200);
+  allmembers->set_sort_column(1);
+  allmembers->set_sort_type(GTK.SORT_ASCENDING);
+  allmembers->set_auto_sort(1);
+  allmembers->show();
+  hb4->pack_start_defaults(allmembers);
+  hb4->pack_start_defaults(scr2);
+  hb4->show();
+  foreach(ga, array ginfo)
+  {
+    int row=allmembers->append(({"user", ginfo[1] + " (" + ginfo[0] + ")"}));
+    allmembers->set_row_data(row, userentry(ginfo[0], ginfo[2], ginfo[1]));
+  }
+  allmembers->sort();
+
+  }
+}
+
 object getPixmapfromFile(string filename)
 {
   object p=Image.PNG.decode(Stdio.read_file(filename));
@@ -459,6 +604,22 @@ class groupentry
     dn=d;
     description=dc;
     name=n;
+  }
+
+}
+
+class userentry
+{
+  string name;
+  string dn;
+  string description;
+  void create(string n, string d, string dc)
+  {
+    dn=d;
+    description=dc;
+    name=n;
+    werror("name: " + name + " dn: " + dn + " description: " + description 
++ "\n");
   }
 
 }
@@ -582,8 +743,10 @@ string getTypeofObject(mixed oc)
   string type="generic";
 
   if(search(oc, "posixAccount")>=0) type="user";
+  else if(search(oc, "posixaccount")>=0) type="user";
   else if(search(oc, "shadowaccount")>=0) type="user";
   else if(search(oc, "posixGroup")>=0) type="group"; 
+  else if(search(oc, "posixgroup")>=0) type="group"; 
   else if(search(oc, "ipNetwork")>=0) type="network";
   else if(search(oc, "nisMailAlias")>=0) type="mailalias";
   else if(search(oc, "ipHost")>=0) type="host";
@@ -596,7 +759,7 @@ string getStateofObject(string type, mixed entry)
 {
   string state="";
 
-  if(type=="user" && entry["userpassword"] &&
+  if(entry["userpassword"] &&
     entry["userpassword"][0]=="{crypt}*LK*")
   {
     state="locked";

@@ -1,3 +1,9 @@
+Changes since version 0.2.5
+
+Added support for adding and modifying groups.
+
+This version requires CVS release of pike 7.3.51 or newer.
+
 Changes since version 0.2.0
 
 Added image cache to speed up drawing of object views.
