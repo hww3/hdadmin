@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.10 2002-10-17 21:20:01 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.11 2002-10-31 18:13:37 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -172,7 +172,7 @@ mapping loadPreferences()
 
 void setupTree(object t, mapping td)
 {
-  object px=getPixmapfromFile("icons/spiral-sm.png");
+//  object px=getPixmapfromFile("icons/spiral-sm.png");
   td->root=t->insert_node(0, 0, ({"HyperActive Directory"}), 0, 0);
   t->expand_recursive();
 }
@@ -455,11 +455,20 @@ array getMembersforGroup(string|void dn, object ldap)
      else for(int i=0; i< r->num_entries(); i++)
      {
        mapping m=fix_entry(r->fetch());
-       string desc="";
+       string desc,myuid,mycn,mydn,myuidnumber="";
        if(m["description"])
-       desc=m["description"][0];
-       array gt=({m["uid"][0], m["cn"][0],
-          m["dn"][0], m["uidnumber"][0]});
+         desc=m["description"][0];
+       if(m["uid"])
+         myuid=m["uid"][0];
+       if(m["uidnumber"])
+         myuidnumber=m["uidnumber"][0];
+        if(m["cn"])
+         mycn=m["cn"][0];
+       if(m["dn"])
+         mydn=m["dn"][0];
+
+       array gt=({myuid, mycn, mydn, myuidnumber});
+
        g+=({gt}); 
        r->next();
     }
