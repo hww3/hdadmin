@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: user.pike,v 1.1 2002-04-29 23:34:16 hww3 Exp $";
+constant cvs_version="$Id: user.pike,v 1.2 2002-04-30 01:40:32 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -40,7 +40,7 @@ string uid;
 object popup;
 object popupmap;
 
-mapping data;
+mapping data, info;
 
 object this;
 
@@ -459,6 +459,17 @@ void applyProperties(mapping whatchanged, object widget, mixed args)
 #ifdef DEBUG
       werror("user added successfully.\n");
 #endif
+    dn=whatchanged->dn;
+#ifdef DEBUG
+      werror("dn: " + dn + "\n");
+#endif
+  
+    data=([]);
+    loadData(); // load the user's data.
+#ifdef DEBUG
+      werror("data: " + sprintf("%O\n", data) + "\n");
+#endif
+    info=data;
       newuser=0;
     }
   }
@@ -559,8 +570,14 @@ void loadData()
     data=loadDefaults();
     return;
   }
+#ifdef DEBUG
+werror("checking to see if we need to reload user data\n");
+#endif
 
-  if(data) return;
+  if(data && sizeof(data)>0) return;
+#ifdef DEBUG
+werror("loading user's data from LDAP\n");
+#endif
   ldap->set_scope(2);
   ldap->set_basedn(dn);
   string filter="objectclass=*";
@@ -595,7 +612,6 @@ void openProperties()
   loadData(); // load the user's data.
 
 
-  mapping info=([]);
   info=data;
   if(dn=="") 
   {
@@ -790,7 +806,8 @@ void openProperties()
 mixed ... args){
 if(newuser)
 {
-  openError("Click Apply to add the user before adding it to a group.");
+  openError("Click Apply to add the user\n"
+    " before adding it to a group.");
   return;
 }
 array selection=allgroups->allgroups->get_selection();
@@ -816,6 +833,12 @@ d->name + ")"}));
 ,groupmemberships);
   removebutton->signal_connect("clicked", lambda(object what, object widget,
 mixed ... args){
+if(newuser)
+{
+  openError("Click Apply to add the user\n"
+    " before removing it from a group.");
+  return;
+}
 array selection=groupmemberships->get_selection();
 foreach(selection, int row)
   {
@@ -891,8 +914,6 @@ foreach(selection, int row)
   addPagetoProperties(groupstab, "Groups", propertiesWindow);
   addPagetoProperties(mailtab, "Mail", propertiesWindow);
   addPagetoProperties(sourcetab, "Object Definition", propertiesWindow);
-  if(newuser)
-    groupstab->hide();
 
   propertiesWindow->show();
   return;

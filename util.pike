@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.2 2002-04-29 23:34:16 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.3 2002-04-30 01:40:31 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -269,7 +269,7 @@ void openError(string msg)
 {
   object errMsg=Gnome.MessageBox(msg,
     Gnome.MessageBoxError, Gnome.StockButtonCancel);    
-  errMsg->set_usize(300, 175);
+  errMsg->set_usize(325, 175);
   errMsg->run();
 }
 
