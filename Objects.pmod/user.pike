@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: user.pike,v 1.9 2002-10-17 21:20:02 hww3 Exp $";
+constant cvs_version="$Id: user.pike,v 1.10 2003-01-02 23:01:17 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -61,6 +61,9 @@ void create(object|void l, string|void mydn, mapping|void att, object|void th)
     name=att->cn[0];
   if(att && att->description)
     description=att->description[0];
+  if(att && att->uid)
+    uid=att->uid[0];
+
   if(att && att->userpassword && att->userpassword[0]=="{crypt}*LK*")
     state="locked";
   this=th;
@@ -685,6 +688,11 @@ void createHomeToggled3(object what, object widget, mixed ... args)
 
 int addUsertoGroup(string groupdn)
 {
+#ifdef DEBUG
+werror("addUsertoGroup: groupdn " + groupdn + "\n");
+werror("addUsertoGroup: dn " + dn + "\n");
+werror("addUsertoGroup: uid " + uid + "\n");
+#endif
   if(uid=="" || dn=="" || groupdn=="")  return 0;
   if(!uid || !dn || !groupdn)  return 0;
   int res=ldap->agressive_modify(groupdn, (["memberuid": ({ 0, uid}),
@@ -695,9 +703,9 @@ int addUsertoGroup(string groupdn)
 
 int removeUserfromGroup(string groupdn)
 {
-  int res=ldap->agressive_modify(groupdn, (["memberuid": ({ 1, uid}),
-			"uniquemember": ({ 1, dn})
-    ]));
+  int res;
+  catch(res=ldap->agressive_modify(groupdn, (["memberuid": ({ 1, uid }) ])));
+  catch(res=ldap->agressive_modify(groupdn, (["uniquemember": ({ 1, dn}) ])));
   return res;
 }
 
@@ -812,6 +820,7 @@ void openProperties()
     tmp=getNamefromGid(tmp, ldap);
   // gidnumber contains the group _name_ not group id number.
   // we'll need to convert later back to gid before operating.
+  if(((int)tmp)==-1) tmp="NONE CHOSEN";
   object gidnumber=addProperty("gidnumber", tmp, Gnome.Entry());
   if(tmp=="") gidnumber->prepend_history(0, "");
   foreach(getGroupsforMember(0, ldap), array grp)

@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: group.pike,v 1.2 2002-10-31 18:16:33 hww3 Exp $";
+constant cvs_version="$Id: group.pike,v 1.3 2003-01-02 23:01:16 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -666,7 +666,7 @@ if(state=="")
     MenuDef( "Move...", openMove, 0),
     MenuDef( "Reset Password...", openPassword, 0),
     MenuDef( "Disable Group", openDisable, 0),
-    MenuDef( "Add user to Group...", openAddtoGroup, 0),
+    MenuDef( "Add user(s) to Group...", openAddtoGroup, 0),
     MenuDef( "<separator>", 0, 0)
   });
 
@@ -798,7 +798,7 @@ void openAddtoGroup()
   array ag=getMembersforGroup(0, ldap);
 
   object allmembers=newMemberList(ag);
-  vbox->pack_start(GTK.Label("Choose a user to add to this group:"
+  vbox->pack_start(GTK.Label("Choose select user(s) to add to this group:"
 	)->show(), 0,0,0);
   vbox->pack_start(allmembers->hb4->show(),0,0,0);
   addWindow->show();
@@ -810,10 +810,12 @@ void openAddtoGroup()
 #ifdef DEBUG
     werror(sprintf("selection: %O\n", sr));
 #endif
-    if(sizeof(sr)!=1);
+    if(sizeof(sr)==0);
     else 
     {
-      object selectedgroup=allmembers->allmembers->get_row_data(sr[0]);
+      foreach(sr, int row)
+      {
+        object selectedgroup=allmembers->allmembers->get_row_data(row);
 #ifdef DEBUG
         werror("adding group for " + selectedgroup->cn + "\n");
 #endif
@@ -826,6 +828,7 @@ void openAddtoGroup()
 //          refreshView();
           return;        
         }
+      }
     }
   }
   if(res !=-1)

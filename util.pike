@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.11 2002-10-31 18:13:37 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.12 2003-01-02 23:01:16 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -570,6 +570,7 @@ class newMemberList
   allmembers->set_usize(150,200);
   allmembers->set_sort_column(1);
   allmembers->set_sort_type(GTK.SORT_ASCENDING);
+  allmembers->set_selection_mode(GTK.SELECTION_MULTIPLE);
   allmembers->set_auto_sort(1);
   allmembers->show();
   hb4->pack_start_defaults(allmembers);
