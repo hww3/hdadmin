@@ -24,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.24 2003-06-20 20:25:31 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.25 2003-06-20 20:54:07 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.2.5"
 
@@ -324,29 +324,46 @@ void openSearch()
 	Gnome.StockButtonCancel);
   searchWindow->set_usize(480,320);
   object pane=searchWindow->vbox();
-  object vbox=GTK.Vbox(0,0)->show();
-  object hb=GTK.Hbox(0,0)->show(); 
+  object vbox=GTK.Vbox(1,0)->show();
+  object hb=GTK.Hbox(1,0)->show(); 
   
-  hb->pack_start_defaults(GTK.Pixmap(
+  hb->pack_start(GTK.Pixmap(
      getPixmapfromFile("icons/directory_server.png"),
-     getBitmapfromFile("icons/directory_server_mask.png"))->show());
+     getBitmapfromFile("icons/directory_server_mask.png"))->show(),0,0,15);
 
-  hb->pack_start(vbox, 0, 0, 1);
+  hb->pack_start(vbox, 0, 0, 5);
 
   pane->pack_start_defaults(hb);
 
   object line1=GTK.Hbox(0,0)->show();
   object line2=GTK.Hbox(0,0)->show();
+  object line3=GTK.Hbox(1,1)->show();
+  object line4=GTK.Hbox(0,0)->show();
+ 
+  object searchwords=GTK.Entry()->show();
+  object gobutton=GTK.Button("Search")->show();
+ 
   object type=GTK.Combo()->show();
   object directorypath=GTKSupport.pDirectoryTreePicker(ldap)->show();
   directorypath->set_path(ldap->BASEDN);
 
-  line1->pack_start(GTK.Label("Search for ")->show(), 0, 0, 3);
+  line1->pack_start(GTK.Label("Find ")->show(), 0, 0, 3);
   line1->pack_start(type, 0, 0, 3);
+  line1->pack_start(GTK.Label(" named ")->show(), 0, 0, 3);
 
-  line2->pack_start(GTK.Label("Search in ")->show(), 0, 0, 3);
-  line2->pack_start(directorypath, 0,0,3);
+  line2->pack_start(searchwords, 0,0,3);
+  line2->pack_start(gobutton, 0,0,3);
+
+  object scroller1=GTK.ScrolledWindow(0,0);
+  object resultpane=.Objects.objectview(preferences->display->viewas);
   
+//  resultpane->box->set_usize(300,300);
+
+  line3->pack_start(resultpane->box->show(), 1,1,1);
+
+  line4->pack_start(GTK.Label(" in ")->show(), 0, 0, 3);
+  line4->pack_start(directorypath, 0,0,3);
+
   array l=({});
 
   foreach(indices(Objects), string n)
@@ -359,6 +376,8 @@ void openSearch()
 
   vbox->pack_start(line1, 0, 0, 1);
   vbox->pack_start(line2, 0, 0, 1);
+  vbox->pack_start(line3, 0, 0, 1);
+  vbox->pack_start(line4, 0, 0, 1);
   vbox->show();
   searchWindow->set_default(0);
   searchWindow->show();
