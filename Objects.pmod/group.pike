@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: group.pike,v 1.3 2003-01-02 23:01:16 hww3 Exp $";
+constant cvs_version="$Id: group.pike,v 1.4 2003-11-10 16:42:39 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -420,12 +420,19 @@ werror("loading group's data from LDAP\n");
 
 mapping loadDefaults()
 {
-  string defaults=Stdio.read_file("defaults/" + type + ".dat");
+  string filename="defaults/" + type + ".dat";
+
+  string d=getenv("HDADMIN_HOME");
+  if(d) filename=combine_path(d, filename);
+
+  string defaults=Stdio.read_file(filename);
   if(!defaults) throw("Unable to read defaults for object type " + type);
   attributes=decode_value(defaults);
+#ifdef DEBUG
+  werror("defaults: " + sprintf("%O", attributes) + "\n");
+#endif
   return attributes;
 }
-
 
 string getValue(mapping att, string a)
 {

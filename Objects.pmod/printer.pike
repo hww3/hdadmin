@@ -1,8 +1,8 @@
 //
 //
-//  host.pike: A GTK+ based LDAP directory management tool
+//  printer.pike: A GTK+ based LDAP directory management tool
 //
-//  Copyright 2002 by Bill Welliver <hww3@riverweb.com>
+//  Copyright 2003 by Bill Welliver <hww3@riverweb.com>
 //
 //
 //  This program is free software; you can redistribute it and/or
@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: host.pike,v 1.2 2003-11-10 16:42:39 hww3 Exp $";
+constant cvs_version="$Id: printer.pike,v 1.1 2003-11-10 16:42:39 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -33,12 +33,12 @@ object ldap;
 //
 // what objectclasses can this module edit?
 //
-multiset supported_objectclasses(){return (<"iphost", "device">);}
+multiset supported_objectclasses(){return (<"printerservice", "sunprinter">);}
 
 //
 // what type of object is this?
 //
-string type="host";
+string type="printer";
 
 //
 // can we add "new" objects of this type?
@@ -65,10 +65,10 @@ void create(object|void l, string|void mydn, mapping|void att, object|void th)
 
   state="";
   dn=mydn;
-  if(att && att->cn)
-    name=att->cn[0];
-  if(att && att->description)
-    description=att->description[0];
+  if(att && att["printer-uri"])
+    name=att["printer-uri"][0];
+  if(att && att["sun-printer-kvp"])
+    description=att["sun-printer-kvp"][0];
   this=th;
   ldap=l;
   if(att)
@@ -84,7 +84,7 @@ object get_icon(string size)
   if(size=="verysmall") size="-vsm";
   else size="";
   if(state=="locked") size="-locked" + size;
-  return getPixmapfromFile("icons/host" + size + ".png");
+  return getPixmapfromFile("icons/printer" + size + ".png");
 }
 
 
@@ -233,14 +233,14 @@ int checkChanges(string dn, mapping w)
   int i;
   string s;
 
-  if(w->iphostnumber && sizeof(w->iphostnumber)==0)
+  if(w["printer-name"] && sizeof(w["printer-name"])==0)
   {
-    openError("You must provide an IP address for this host.");
+    openError("You must provide a name for this printer.");
     return 1;
   }
 
-  if(dn=="" && !w->iphostnumber)  {
-    openError("You must provide an IP address for this host.");
+  if(dn=="" && !w["printer-uri"])  {
+    openError("You must provide a name for this printer.");
     return 1;
   }
 
@@ -253,14 +253,14 @@ int checkChanges(string dn, mapping w)
     }
     string mydn;
     object sel=this->leftpane->node_get_row_data(this->current_selection);
-    mydn="cn=" + w->cn + ", "+ sel->dn;
+    mydn="printer-uri=" + w["printer-uri"] + ", "+ sel->dn;
     w->dn=mydn;
     ldap->set_basedn(w->dn);
     object rx=ldap->search("objectclass=*");
     if(rx->num_entries()!=0)
     {
-      openError("You have chosen a duplicate hostname, or the\n"
-	"DN is already in use. Please choose a different hostname.");
+      openError("You have chosen a duplicate printer name, or the\n"
+	"DN is already in use. Please choose a different printer name.");
       return 0;	
     }
     w->newObject="1";
@@ -352,7 +352,7 @@ void applyProperties(mapping whatchanged, object widget, mixed args)
     else res=doChanges(whatchanged->dn, whatchanged);
     if(!res)
     {
-      openError("An error occurred while modifying a host: " +
+      openError("An error occurred while modifying a printer: " +
 	"\n\n" + ldap->error_number() + " " + 
         ldap->error_string(ldap->error_number()));
       widget->close();
@@ -361,7 +361,7 @@ void applyProperties(mapping whatchanged, object widget, mixed args)
     else 
     {
 #ifdef DEBUG
-      werror("host added/changed successfully.\n");
+      werror("printer added/changed successfully.\n");
 #endif
       if(whatchanged->dn != dn)
       {
@@ -438,12 +438,12 @@ void loadData()
     return;
   }
 #ifdef DEBUG
-werror("checking to see if we need to reload user data\n");
+werror("checking to see if we need to reload printer data\n");
 #endif
 
   if(attributes && sizeof(attributes)>0) return;
 #ifdef DEBUG
-werror("loading user's data from LDAP\n");
+werror("loading printer's data from LDAP\n");
 #endif
   ldap->set_scope(2);
   ldap->set_basedn(dn);
@@ -480,19 +480,19 @@ void openProperties()
 {
   mapping whatchanged=([]);
 
-  loadData(); // load the user's data.
+  loadData(); // load the printer's data.
 
   info=attributes;
-  werror("USER DATA: " + sprintf("%O", info) + "\n\n");
+  werror("PRINTER DATA: " + sprintf("%O", info) + "\n\n");
   if(dn=="") 
   {
     whatchanged=info;
     newobject=1;
   }
-  string cn1= getValue(info, "cn");
+  string printer_uri= getValue(info, "printer-uri");
 
   // check for the proper objectclasses
-  array roc=({"device", "iphost"});
+  array roc=({"printerService", "printerAbstract", "sunPrinter"});
 
   if(dn&&dn!="") // if we aren't working on a new item, make sure the oc are correct.
   {
@@ -505,7 +505,7 @@ void openProperties()
       if(search(info["objectclass"], oc1)==-1)  // do we have this objectclass?
       {
 #ifdef DEBUG
-        werror("adding objectclass " + oc1 + " for user " + dn + "\n");
+        werror("adding objectclass " + oc1 + " for printer " + dn + "\n");
 #endif
         ldap->agressive_modify(dn, (["objectclass": ({0, oc1})]));    
       }
@@ -513,49 +513,58 @@ void openProperties()
   }
   object propertiesWindow;
   propertiesWindow = Gnome.PropertyBox();
-  propertiesWindow->set_title("Properties of host " + cn1);
+  propertiesWindow->set_title("Properties of printer " + printer_uri);
   whatchanged->propertiesWindow=propertiesWindow;
   whatchanged->dn=dn;
   object generaltab=GTK.Vbox(0, 0);
   object sourcetab=GTK.Vbox(0, 0);
   object titleline=GTK.Hbox(0, 5);
-  object p=getPixmapfromFile("icons/host.png");
+  object p=getPixmapfromFile("icons/printer.png");
   object pic=GTK.Pixmap(GDK.Pixmap(p));
   titleline->pack_start_defaults(pic->show());
-  titleline->pack_start_defaults(GTK.Label(cn1)->show());
+  titleline->pack_start_defaults(GTK.Label(printer_uri)->show());
   titleline->show();
   generaltab->pack_start(titleline,0,0,20);
 
 // set up entry fields
   string tmp="";
-  tmp=getTextfromEntry("description", info);
+  tmp=getTextfromEntry("printer-uri", info);
   if(newobject)
   {
-    object cn=addProperty("cn", tmp, GTK.Entry());
-    addItemtoPage(cn, "Hostname", generaltab);
-    cn->signal_connect("changed", propertiesChanged, whatchanged);
+    object uri=addProperty("printer-uri", tmp, GTK.Entry());
+    addItemtoPage(uri, "Printer Name", generaltab);
+    uri->signal_connect("changed", propertiesChanged, whatchanged);
 
   }
 
   object description=addProperty("description", tmp, GTK.Entry());
+  description->signal_connect("changed", propertiesChanged, whatchanged);
 
-  object iphostnumber=GTKSupport.pExtraCombo()->show();
-  iphostnumber->set_contents(info->iphostnumber);
-  iphostnumber->set_validation_callback(validate_ip_address);
-  iphostnumber->signal_connect("changed", propertiesChanged, whatchanged);
-  iphostnumber->set_name("iphostnumber");
-  addItemtoPage(iphostnumber, "Addresses", generaltab);
- 
+  tmp=getTextfromEntry("sun-printer-kvp", info);
+  object sun_printer_kvp=addProperty("sun-printer-kvp", tmp, GTK.Entry());
+  sun_printer_kvp->signal_connect("changed", propertiesChanged, whatchanged);
+
+  tmp=getTextfromEntry("printer-name", info);
+  object printer_name=addProperty("printer-name", tmp, GTK.Entry());
+  printer_name->signal_connect("changed", propertiesChanged, whatchanged);
+
+  tmp=getTextfromEntry("sun-printer-bsdaddr", info);
+  object sun_printer_bsdaddr=addProperty("sun-printer-bsdaddr", tmp, GTK.Entry());
+  sun_printer_bsdaddr->signal_connect("changed", propertiesChanged, whatchanged);
+
+
   object objectsource=GTK.Text();
   
   catch(objectsource->set_text(generateLDIF(info)));
   addItemtoPage(description, "Description", generaltab);
+  addItemtoPage(printer_name, "Name", generaltab);
+  addItemtoPage(sun_printer_kvp, "Sun Printer KVP", generaltab);
+  addItemtoPage(sun_printer_bsdaddr, "Printer Addr", generaltab);
 
   sourcetab->pack_start_defaults(objectsource->show());
   sourcetab->show();
   // attach changed signal to all entry widgets...
 
-  description->signal_connect("changed", propertiesChanged, whatchanged);
   propertiesWindow->signal_connect("apply", applyProperties, whatchanged);
 
 
@@ -564,18 +573,6 @@ void openProperties()
 
   propertiesWindow->show();
   return;
-}
-
-string|void validate_ip_address(string i)
-{
-
-  int a,b,c,d;
-  if(sscanf(i,"%d.%d.%d.%d",a,b,c,d)!=4)
-    return "You must provide a valid IP address.";
-  if((a<0 || a>255)||(b<0 || b>255)||(c<0 || c>255)||(d<0 || d>255))
-    return "Each octet in the IP address must be between 0 and 255.";
-  return; 
-
 }
 
 /*

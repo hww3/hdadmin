@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: generic.pike,v 1.3 2002-10-17 21:20:02 hww3 Exp $";
+constant cvs_version="$Id: generic.pike,v 1.4 2003-11-10 16:42:39 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -254,4 +254,20 @@ int doDelete()
   else werror("Unable to find object " + dn + "\n");
 }
 
+
+mapping loadDefaults()
+{
+  string filename="defaults/" + type + ".dat";
+
+  string d=getenv("HDADMIN_HOME");
+  if(d) filename=combine_path(d, filename);
+
+  string defaults=Stdio.read_file(filename);
+  if(!defaults) throw("Unable to read defaults for object type " + type);
+  attributes=decode_value(defaults);
+#ifdef DEBUG
+  werror("defaults: " + sprintf("%O", attributes) + "\n");
+#endif
+  return attributes;
+}
 
