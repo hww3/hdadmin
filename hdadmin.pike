@@ -24,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.19 2002-11-18 19:12:13 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.20 2003-06-13 21:37:26 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.2.5"
 
@@ -609,12 +609,26 @@ void openActions()
 
 void setupToolbar()
 {
-  object icon=GTK.Pixmap(getPixmapfromFile("icons/connect.png"))->show();
+  object conicon=GTK.Pixmap(getPixmapfromFile("icons/connect.png"),
+      getBitmapfromFile("icons/connect_mask.png"))->show();
+  object searchicon=GTK.Pixmap(getPixmapfromFile("icons/search.png"),
+      getBitmapfromFile("icons/search_mask.png"))->show();
+  object 
+actionicon=GTK.Pixmap(getPixmapfromFile("icons/actions.png"), 
+getBitmapfromFile("icons/actions_mask.png"))->show();
+
   object toolbar=GTK.Toolbar(GTK.ORIENTATION_HORIZONTAL, GTK.TOOLBAR_ICONS);
-  toolbar->append_item("Connect/Disconnect", "Connect/Disconnect", "", icon,
+  toolbar->append_item("Connect", "Connect to a directory server", "", conicon,
     toggleConnect, 0);
   toolbar->append_space();
-  toolbar->append_item("Actions", "Actions", "", GTK.Label("Actions")->show(), openActions, 0);
+  toolbar->append_item("Actions", "Commonly used actions", "", actionicon,
+    openActions, 0);
+
+  toolbar->append_item("Search", "Search the directory", "", 
+    searchicon,
+    toggleConnect, 0);
+
+  toolbar->set_style(GTK.TOOLBAR_BOTH);
   toolbar->show();
   win->set_toolbar(toolbar);
 }

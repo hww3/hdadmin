@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.12 2003-01-02 23:01:16 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.13 2003-06-13 21:37:26 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -198,9 +198,9 @@ object addItemtoPage(object item, string desc, object page)
 
   object label=GTK.Label(desc+":");
   label->set_justify(GTK.JUSTIFY_RIGHT);
-  hbox->pack_start(label->show(), 0, 0 , 5);
-  hbox->pack_end(item->show(), 0, 0, 5);
-  page->pack_start(hbox->show(), 0, 0, 4);
+  hbox->pack_start(label->show(), 0, 0 , 4);
+  hbox->pack_end(item->show(), 0, 0, 4);
+  page->pack_start(hbox->show(), 0, 0, 3);
   return hbox;
 }
 
@@ -595,9 +595,35 @@ object getPixmapfromFile(string filename)
     return pixmapcache[filename];
   else
   {
-    object p=Image.PNG.decode(Stdio.read_file(filename));
+    object p=Image.load(filename);
     pixmapcache[filename]=p;
     return GDK.Pixmap(p);
+  }
+}
+
+
+object getImagefromFile(string filename)
+{
+  if(pixmapcache[filename])
+    return pixmapcache[filename];
+  else
+  {
+    object p=Image.load(filename);
+    pixmapcache[filename]=p;
+    return GDK.Image(0, p);
+  }
+}
+
+
+object getBitmapfromFile(string filename)
+{
+  if(pixmapcache[filename])
+    return pixmapcache[filename];
+  else
+  {
+    object p=Image.load(filename);
+    pixmapcache[filename]=p;
+    return GDK.Bitmap(p);
   }
 }
 
