@@ -24,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.22 2003-06-16 15:15:00 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.23 2003-06-17 19:17:46 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.2.5"
 
@@ -38,6 +38,8 @@ object win,status,leftpane,rightpane;
 object actions;
 object connectButton;
 mixed connectButtonsignal;
+object searchButton;
+mixed searchButtonsignal;
 
 mapping objectclass_map=([]);
 mapping preferences=([]);
@@ -82,6 +84,30 @@ void appQuit()
   _exit(0);
 }
 
+void setConnected(int c)
+{
+  if(c)
+  {
+    connectButton->signal_block(connectButtonsignal);
+    connectButton->set_active(1);
+    connectButton->signal_unblock(connectButtonsignal);
+    searchButton->signal_block(searchButtonsignal);
+    searchButton->set_sensitive(1);
+    searchButton->signal_unblock(searchButtonsignal);
+    isConnected=1;
+  }
+  else
+  {
+    connectButton->signal_block(connectButtonsignal);
+    connectButton->set_active(0);
+    connectButton->signal_unblock(connectButtonsignal);
+    searchButton->signal_block(searchButtonsignal);
+    searchButton->set_sensitive(0);
+    searchButton->signal_unblock(searchButtonsignal);
+    isConnected=0;
+  }
+}
+
 void openDisconnect()
 { 
   if(isConnected==1) 
@@ -90,14 +116,17 @@ void openDisconnect()
     treedata=clearTree(leftpane, treedata);
     setupTree(leftpane, treedata);
     ldap->unbind();
-    connectButton->signal_block(connectButtonsignal);
-    connectButton->set_active(0);
-    connectButton->signal_unblock(connectButtonsignal);
-    isConnected=0;
+    setConnected(0);
   }
 }
 
 void toggleConnect()
+{
+  if(isConnected==1) openDisconnect();
+  else openConnect();
+}
+
+void toggleSearch()
 {
   if(isConnected==1) openDisconnect();
   else openConnect();
@@ -191,6 +220,7 @@ object addProperty(string name, string value, object o)
 
 void openConnect()
 {
+  setConnected(0);
   object connectWindow;
   if(isConnected==1) // we're already connected!
   {
@@ -282,13 +312,6 @@ void openConnect()
   if(connectWindow) 
     connectWindow->close();
   
-  connectButton->signal_block(connectButtonsignal);
-
-  if(isConnected) connectButton->set_active(1);  
-  else connectButton->set_active(0);  
-
-  connectButton->signal_unblock(connectButtonsignal);
-
   return;
 
 }
@@ -346,7 +369,7 @@ int doConnect(string host, string username, string password, string basedn)
     ldap->USERPASS=password;
 
     populateTree(leftpane, treedata, ldap);
-    isConnected=1;
+    setConnected(1);
     return 0;
   }
   return 1;
@@ -641,16 +664,21 @@ getBitmapfromFile("icons/actions_mask.png"))->show();
     toggleConnect, 0);
   connectButton->set_mode(0);
 
+  
+  searchButton=GTK.Button()->add(searchicon)
+    ->set_relief(GTK.RELIEF_NONE)->show();
+  searchButtonsignal=searchButton->signal_connect("clicked", 
+    toggleSearch, 0);
+  searchButton->set_sensitive(0);
+
   object toolbar=GTK.Toolbar(GTK.ORIENTATION_HORIZONTAL, GTK.TOOLBAR_ICONS);
   toolbar->append_widget(connectButton, "Connect to a directory server", 
      "Private");
   toolbar->append_space();
   toolbar->append_item("Actions", "Commonly used actions", "", actionicon,
     openActions, 0);
-
-  toolbar->append_item("Search", "Search the directory", "", 
-    searchicon,
-    openAbout, 0);
+  toolbar->append_widget(searchButton, "Search the directory tree", 
+     "Private");
 
 //  toolbar->set_style(GTK.TOOLBAR_BOTH);
   toolbar->show();
