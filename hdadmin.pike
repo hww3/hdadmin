@@ -24,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.26 2003-06-25 20:38:10 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.27 2003-06-27 19:56:19 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.2.5"
 
@@ -128,7 +128,7 @@ void toggleConnect()
 
 void toggleSearch()
 {
-  if(isConnected==1) openSearch();
+  if(isConnected==1) Search(ldap, this_object());
 }
 
 void doLDIFSave(object what, object widget, mixed ... args)
@@ -315,83 +315,224 @@ void openConnect()
 
 }
 
-void openSearch()
+class Search
 {
   object searchWindow, resultmsg;
+  object pane, resultpane;
+  object searchwords;
+  object gobutton;
+  object type;
+  object directorypath;
 
-  searchWindow=GTK.Dialog();
-  searchWindow->set_title("Search the Directory");
-  searchWindow->set_usize(560,340);
-  resultmsg=GTK.Label("entries found.");
-  object pane=GTK.Vbox(0,0)->show();
-  object messagebox=searchWindow->get_action_area();
-  messagebox->add(resultmsg->show())->show();
-  searchWindow->add(pane);
-  object vpane=GTK.Vpaned()->show();
+  object ldap;
+  object t_o;
 
-  pane->pack_start(vpane, 1, 1, 5);
+  mapping preferences;
 
-  object vbox1=GTK.Vbox(1,0)->show();
-  object vbox2=GTK.Vbox(0,0)->show();
+  int clickevent;
 
-  object hb=GTK.Hbox(0,0)->show(); 
+  void create(object _ldap, object _this)
+  {
+    ldap=_ldap;
+    t_o=_this;
+
+    preferences=t_o->preferences;
+
+    searchWindow=GTK.Window(GTK.WINDOW_DIALOG);
+    searchWindow->set_title("Search the Directory");
+    searchWindow->set_usize(560,340);
+    pane=GTK.Vbox(0,0)->show();
+    searchWindow->add(pane);
+    object vpane=GTK.Vpaned()->show();
+
+    pane->pack_start(vpane, 1, 1, 5);
+
+    object vbox1=GTK.Vbox(1,0)->show();
+    object vbox2=GTK.Vbox(0,0)->show();
+
+    object hb=GTK.Hbox(0,0)->show(); 
   
-  hb->pack_start(GTK.Pixmap(
-     getPixmapfromFile("icons/directory_server.png"),
-     getBitmapfromFile("icons/directory_server_mask.png"))->show(),0,0,10);
+    hb->pack_start(GTK.Pixmap(
+       getPixmapfromFile("icons/directory_server.png"),
+       getBitmapfromFile("icons/directory_server_mask.png"))->show(),0,0,10);
 
-  hb->pack_start(vbox1, 0, 0, 5);
+    hb->pack_start(vbox1, 0, 0, 5);
+ 
+    vpane->pack1(hb, 0,0);
+    vpane->pack2(vbox2, 1,1);
 
-  vpane->pack1(hb, 0,0);
-  vpane->pack2(vbox2, 1,1);
-
-  object line1=GTK.Hbox(0,0)->show();
+    object line1=GTK.Hbox(0,0)->show();
 //  object line2=GTK.Hbox(0,0)->show();
-  object line3=GTK.Hbox(1,1)->show();
-  object line4=GTK.Hbox(0,0)->show();
+    object line3=GTK.Hbox(1,1)->show();
+    object line4=GTK.Hbox(0,0)->show();
+    object line5=GTK.Hbox(0,0)->show();
+
+    resultmsg=GTK.Label("No Entries Found.")
+      ->set_justify(GTK.JUSTIFY_RIGHT)->show(); 
+
+    searchwords=GTK.Entry()->show();
+    gobutton=GTK.Button(" Search ")->show();
  
-  object searchwords=GTK.Entry()->show();
-  object gobutton=GTK.Button(" Search ")->show();
- 
-  object type=GTK.Combo()->show();
-  object directorypath=GTKSupport.pDirectoryTreePicker(ldap)->show();
-  directorypath->set_path(ldap->BASEDN);
+    type=GTK.Combo()->show();
+    directorypath=GTKSupport.pDirectoryTreePicker(ldap)->show();
+    directorypath->set_path(ldap->BASEDN);
 
-  line1->pack_start(GTK.Label("Find ")->show(), 0, 0, 1);
-  line1->pack_start(type, 0, 0, 1);
-  line1->pack_start(GTK.Label(" named ")->show(), 0, 0, 1);
+    line1->pack_start(GTK.Label("Find ")->show(), 0, 0, 1);
+    line1->pack_start(type, 0, 0, 1);
+    line1->pack_start(GTK.Label(" named ")->show(), 0, 0, 1);
 
-  line1->pack_start(searchwords, 0,0,2);
-  line1->pack_start(gobutton, 0,0,2);
+    line1->pack_start(searchwords, 0,0,2);
+    line1->pack_start(gobutton, 0,0,2);
 
-  object resultpane=.Objects.objectview(preferences->display->viewas);
-  
-  line3->add(resultpane->box->show());
+    searchWindow->set_default(gobutton);
+//    searchWindow->editable_enters(searchwords);
 
-  line4->pack_start(GTK.Label(" in ")->show(), 0, 0, 2);
-  line4->pack_start(directorypath, 0,0,2);
+    resultpane=.Objects.objectview(preferences->display->viewas);
+    resultpane->set_display_ou(1);
+    resultpane->change_view("list");
 
-  array l=({});
+    line3->add(resultpane->box->show());
 
-  foreach(indices(Objects), string n)
-    if(Objects[n]()->writeable)
-      l+=({upper_case(n[0..0]) + n[1..] + "s"});
+    line4->pack_start(GTK.Label(" in ")->show(), 0, 0, 2);
+    line4->pack_start(directorypath, 0,0,2);
 
-  type->set_popdown_strings(l);
+    line5->pack_end(resultmsg,0,0,2);
 
-  type->entry()->set_editable(0);
 
-  vbox1->pack_start(line1, 0, 0, 3);
+    array l=({});
+
+    foreach(indices(Objects), string n)
+      if(Objects[n]()->writeable)
+        l+=({upper_case(n[0..0]) + n[1..] + "s"});
+
+    type->set_popdown_strings(l);
+
+    type->entry()->set_editable(0);
+
+    vbox1->pack_start(line1, 0, 0, 3);
 //  vbox1->pack_start(line2, 0, 0, 1);
-  vbox1->pack_start(line4, 0, 0, 3);
+    vbox1->pack_start(line4, 0, 0, 3);
 
-  vbox2->pack_start(line3, 1, 1, 1);
-  vbox1->show();
-  vbox2->show();
-  searchWindow->set_default(0);
-  searchWindow->show();
+    vbox2->pack_start(line3, 1, 1, 1);
+    vbox2->pack_start(line5, 0, 0, 1);
+    vbox1->show();
+    vbox2->show();
+
+    gobutton->signal_connect("clicked", doSearch, 0);
+
+//  searchWindow->set_default(0);
+    searchWindow->show();
   
-  return;
+    return;
+
+
+  }
+
+  void doSearch(mixed what, object widget, mixed selected)
+  {
+    resultpane->clear();
+
+    string objecttype=type->entry()->get_text();
+    string searchstring=searchwords->get_text();
+
+    string co="";
+    string cs="";
+  
+    string cls=lower_case(objecttype[0..sizeof(objecttype)-2]);
+
+    foreach((array)Objects[cls]()
+      ->supported_objectclasses(), string o)
+    co+="(objectclass=" + o + ")";
+
+    foreach((array)Objects[cls]()
+      ->supported_searchfields(), string o)
+    cs+="(" + o + "=*" + searchstring + "*)";
+
+    resultpane->signal_disconnect(clickevent);
+
+    ldap->set_scope(2);
+    ldap->set_basedn(directorypath->get_path());
+
+    string filter="(&(|" + co + ")(| " + cs+ "))";
+
+//    werror("search: " + filter + "\n");
+
+    object res=ldap->search(filter);
+    for(int i=0; i<res->num_entries(); i++)
+    {
+      mapping entry=res->fetch();
+      resultpane->add_object(ldap, this_object(), entry);
+      res->next();
+    }
+
+    clickevent=resultpane->signal_connect(GTK.button_press_event, clickIconList, 0);
+    resultpane->signal_connect("select", selectIcon, 0);
+    resultpane->signal_connect("unselect", unselectIcon, 0);
+    clickevent=resultpane->signal_connect(GTK.button_press_event, 
+        clickIconList, 0);
+
+    resultmsg->set_text(res->num_entries() + " entries found.");
+  }
+
+  GTK.Menu popupmenu;
+  int menuisup=0;
+  int clickIconList(object what, object widget, mixed selected)
+  { 
+
+    object data;
+    array n;
+
+    if(menuisup==0 && popupmenu) popupmenu=0;
+#ifdef DEBUG
+    werror(sprintf("%O ", selected->button));
+    werror(sprintf("%O\n", selected->type));
+#endif
+    if( selected->button == 3 ) 
+    {
+      array n=resultpane->get_selected_objects();
+      object data;
+
+      if(sizeof(n)>=1) 
+      {
+        data=resultpane->get_object(n[0]);
+      }
+  
+      if(data && data->showpopup) 
+      {
+        data->showpopup(3);
+        return 1;
+      }
+    }
+
+    else if(selected->type=="2button_press" && selected->button==1)
+    {
+      n=resultpane->get_selected_objects();
+      if(sizeof(n)>=1) 
+      {
+        data=resultpane->get_object(n[0]);
+        data->openProperties();
+      }
+      return 0;
+    }
+
+
+    return 0;
+
+  }
+
+
+  int selectIcon(int what, object widget, mixed selected)
+  { 
+    array dns=getDNfromSelection();
+    return 1;
+  }
+
+
+  int unselectIcon(int what, object widget, mixed selected)
+  { 
+     return 1;
+  }
+
 
 }
 

@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: user.pike,v 1.10 2003-01-02 23:01:17 hww3 Exp $";
+constant cvs_version="$Id: user.pike,v 1.11 2003-06-27 19:56:20 hww3 Exp $";
 
 inherit "../util.pike";
 
@@ -31,6 +31,7 @@ import GTK.MenuFactory;
 object ldap;
 
 multiset supported_objectclasses(){return (<"posixaccount", "user">);}
+multiset supported_searchfields(){return (<"cn", "uid">);}
 
 string type="user";
 int writeable=1;

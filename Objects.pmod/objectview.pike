@@ -7,6 +7,7 @@ inherit "../util.pike";
 string view_type;
 object view, box;
 object vbox;
+int display_ou=0;
 mapping objectclass_map=([]);
 
 void create(string viewas)
@@ -40,6 +41,11 @@ void thaw()
 {
   view->sort();
   view->thaw();
+}
+
+void set_display_ou(int b)
+{
+  display_ou=b;
 }
 
 object|int get_object(int i)
@@ -95,9 +101,14 @@ void change_view(string viewas)
     vbox->show();
     vscroll->show();
     hscroll->show();
-    view=GTK.Clist(2);
+    if(display_ou)
+      view=GTK.Clist(3);
+    else
+      view=GTK.Clist(2);
     view->set_column_title(0, "Name");
     view->set_column_title(1, "Description");
+    if(display_ou)
+      view->set_column_title(2, "Location");
     view->column_titles_show();
     view->set_selection_mode(GTK.SELECTION_SINGLE);
     view->set_column_auto_resize(0,1);
@@ -129,7 +140,11 @@ void add_object(object ldap, object this, mapping entry)
   d=make_object(entry, ldap, this);
   if(view_type=="list")
   {
-      addedrow=view->insert(0, ({"", d->description }) );
+      if(display_ou)
+        addedrow=view->insert(0, ({"", d->description,
+          make_nicepath(((d->dn/",")[1..])*",") }) );
+      else
+        addedrow=view->insert(0, ({"", d->description }) );
       px=d->get_icon("verysmall");
       view->set_pixtext(0, addedrow, d->name, 5, px);
   }

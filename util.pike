@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-constant cvs_version="$Id: util.pike,v 1.15 2003-06-25 20:38:11 hww3 Exp $";
+constant cvs_version="$Id: util.pike,v 1.16 2003-06-27 19:56:20 hww3 Exp $";
 
 import GTK.MenuFactory;
 
@@ -201,6 +201,16 @@ object addItemtoPage(object item, string desc, object page)
   hbox->pack_end(item->show(), 0, 0, 4);
   page->pack_start(hbox->show(), 0, 0, 1);
   return hbox;
+}
+
+string make_nicepath(string path)
+{
+   array np=path/",";
+   for(int n=0; n<sizeof(np); n++)
+   {
+     np[n]=String.capitalize(String.trim_whites((np[n]/"=")[1]));
+   }
+   return np*"/";
 }
 
 object addPagetoProperties(object page, string desc, object properties)
