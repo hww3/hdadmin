@@ -1,3 +1,5 @@
+#!/usr/local/bin/pike -M.
+
 //
 //
 //  hdadmin.pike: A GTK+ based LDAP directory management tool
@@ -22,7 +24,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.10 2002-04-30 00:58:13 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.11 2002-06-03 20:44:38 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.20"
 

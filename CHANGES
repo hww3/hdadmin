@@ -1,3 +1,15 @@
+Changes since version 0.2.0
+
+Added #! line to top of hdadmin script.
+
+Fixed the following bugs:
+
+- autohome directory not saved when creating new user account.
+- shadowinactive not being saved.
+- cursor not automatically present in first password box when resetting password.
+- groups cannot be added immediately after applying a new user addition.
+- once you add a uid number, you must supply a full number (no blanks).
+
 Changes since version 0.1.5
 
 Each object type is handled by a separate class within Objects.pmod. 
