@@ -22,7 +22,7 @@
 //
 //
 
-constant cvs_version="$Id: hdadmin.pike,v 1.9 2002-04-29 23:34:16 hww3 Exp $";
+constant cvs_version="$Id: hdadmin.pike,v 1.10 2002-04-30 00:58:13 hww3 Exp $";
 
 #define HDADMIN_VERSION "0.20"
 
@@ -573,16 +573,13 @@ void setupContent()
 {
   object pane=GTK.Hpaned();
   object scroller1=GTK.ScrolledWindow(0,0);
-  object scroller2=GTK.ScrolledWindow(0,0);
   leftpane=makeTree();
   rightpane=.Objects.objectview(preferences->display->viewas);
   scroller1->add(leftpane);
-  scroller2->add(rightpane->box);
   pane->set_position(200);
   pane->add1(scroller1);
-  pane->add2(scroller2);
+  pane->add2(rightpane->box);
   scroller1->show();
-  scroller2->show();
   leftpane->show();
   win->set_contents(pane);
 }

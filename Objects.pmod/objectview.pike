@@ -4,6 +4,7 @@
 
 string view_type;
 object view, box;
+object vbox;
 
 void create(string viewas)
 {
@@ -54,17 +55,31 @@ void change_view(string viewas)
 {
   if(!box) box=GTK.EventBox();
   box->show();
-  if(view) box->remove(view);
+  if(vbox) box->remove(vbox);
   if(viewas=="icons")
   {
+    vbox=GTK.ScrolledWindow(0, 0);
     view=Gnome.IconList(40, 0);
     view->set_separators(" ");
     view->set_icon_width(65);
     view->set_selection_mode(GTK.SELECTION_MULTIPLE);
     view->show();
+    vbox->show();
+    vbox->add(view);
+    box->add(vbox);
   }
   else if(viewas=="list")
   {
+    if(vbox) box->remove(vbox);
+    vbox=GTK.Vbox(0, 0); 
+    object hbox=GTK.Hbox(0, 0);
+    object vadj=GTK.Adjustment();
+    object hadj=GTK.Adjustment();
+    object vscroll=GTK.Vscrollbar(vadj);
+    object hscroll=GTK.Hscrollbar(hadj);
+    vbox->show();
+    vscroll->show();
+    hscroll->show();
     view=GTK.Clist(2);
     view->set_column_title(0, "Name");
     view->set_column_title(1, "Description");
@@ -74,15 +89,28 @@ void change_view(string viewas)
     view->set_sort_column(0);
     view->set_auto_sort(1);
     view->show();
+
+    view->set_vadjustment(vadj);
+    view->set_hadjustment(hadj);
+    
+    hbox->set_homogeneous(0);
+    hbox->show();
+    hbox->pack_end(vscroll, 0, 0, 0);
+    hbox->pack_start_defaults(view);
+    vbox->pack_end(hscroll, 0, 0, 0);
+    vbox->pack_start_defaults(hbox);
+    box->add(vbox);
   }
   view_type=viewas;
   box->set_resize_mode(GTK.RESIZE_IMMEDIATE);
-  box->add(view);
 
 }
 
 void add_object(mapping item, object ldap, object this)
 {
+#ifdef DEBUG
+werror("add_object: " + item->name + "\n");
+#endif
   int addedrow;
   if(item->state=="locked")
   {
@@ -93,7 +121,7 @@ void add_object(mapping item, object ldap, object this)
       view->set_pixtext(0, addedrow, item->name, 5, px);
     }
     else if(view_type=="icons")
-      addedrow=view->insert(0, "icons/" + item->type + "-locked-vsm.png", item->name);
+      addedrow=view->insert(0, "icons/" + item->type + "-locked-sm.png", item->name);
   }
   else
   {
@@ -104,10 +132,24 @@ void add_object(mapping item, object ldap, object this)
       view->set_pixtext(addedrow, 0, item->name, 5, px);
     }
     else if(view_type=="icons")
-      addedrow=view->insert(0, "icons/" + item->type + "-vsm.png", item->name);
+    {
+#ifdef DEBUG
+werror("add_object: " + item->name + " inserting icon...");
+#endif
+      addedrow=view->insert(0, "icons/" + item->type + "-sm.png", item->name);
+#ifdef DEBUG
+werror("done.\n");
+#endif
+    }
   }
   object d;
+#ifdef DEBUG
+werror("add_object: " + item->name + " making data\n");
+#endif
   d=make_object(item, ldap, this);
+#ifdef DEBUG
+werror("add_object: " + item->name + " setting data\n");
+#endif
 
   if(view_type=="list")
     view->set_row_data(addedrow, d);

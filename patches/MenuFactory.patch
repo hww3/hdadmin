@@ -1,5 +1,5 @@
---- MenuFactory.pmod.orig	Mon Dec 18 21:32:47 2000
-+++ MenuFactory.pmod	Fri Feb  1 21:52:54 2002
+--- lib/modules/GTKSupport.pmod/MenuFactory.pmod.orig	Mon Dec 18 21:32:47 2000
++++ lib/modules/GTKSupport.pmod/MenuFactory.pmod	Fri Feb  1 21:52:54 2002
 @@ -150,6 +150,77 @@
    return copy_value(submenues);
  }
