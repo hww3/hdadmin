@@ -9,6 +9,8 @@ private object hb2,vscroll,vadj; // for the scrolled list
 
 private mapping callbacks=([]);
 
+int allow_duplicates=0;
+
 inherit GTK.Vbox;
 
 
@@ -95,6 +97,11 @@ int signal_connect(string signal, function callback, mixed|void callback_arg)
       ::signal_connect(signal, callback, callback_arg);
 }
 
+void set_allow_duplicates(int yesno)
+{
+  allow_duplicates=yesno;
+}
+
 void set_validation_callback(function cb)
 {
   if(functionp(cb))
@@ -122,14 +129,22 @@ private void private_add_row()
    if(res || !i) // validation of input failed. display error.
    {
       GTKSupport.Alert(res);  
+      return;
    }
-   else
+
+   if(!allow_duplicates)
    {
-      list->append(({i}));
-      if(callbacks->changed)
-        foreach(callbacks->changed, array cb)
-          cb[0](cb[1], this_object(), "+" + i);
+      if(search(get_contents(), i)!=-1)
+      {
+        GTKSupport.Alert("An entry for " + i + " already exists.");
+        return;
+      }
    }
+
+   list->append(({i}));
+   if(callbacks->changed)
+     foreach(callbacks->changed, array cb)
+       cb[0](cb[1], this_object(), "+" + i);
 
    return;
 }
